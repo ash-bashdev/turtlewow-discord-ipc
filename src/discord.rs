@@ -270,6 +270,7 @@ impl DiscordIpc {
                     let _ = self.send_frame(Opcode::Pong, payload.as_bytes());
                 }
                 Opcode::Close => {
+                    self.pipe = None;
                     self.state = State::Disconnected;
                     return Err(io::Error::new(
                         io::ErrorKind::ConnectionAborted,
@@ -360,7 +361,7 @@ impl DiscordIpc {
                     ptr::null_mut(),
                 )
             };
-            if ok == 0 {
+            if ok == 0 || (bytes_read as usize) != payload_len {
                 return Err(io::Error::last_os_error());
             }
         }

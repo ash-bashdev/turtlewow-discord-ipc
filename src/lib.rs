@@ -348,7 +348,7 @@ unsafe extern "system" fn DllMain(module: HMODULE, reason: u32, _reserved: *mut 
                 return 1;
             }
 
-            // Start Discord SDK thread
+            // Start Discord IPC thread
             let thread_state = state.clone();
             thread::spawn(move || discord_thread(thread_state));
         }
