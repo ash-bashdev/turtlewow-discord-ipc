@@ -7,5 +7,6 @@
 
 lua\Template.lua
 lua\Presets.lua
+lua\Variables.lua
 lua\Config.lua
 DiscordPresence.lua

@@ -196,15 +196,9 @@ function DiscordPresence_Config.UpdatePreview()
     if not configFrame or not configFrame.preview then return end
     -- try to compile from current editor text and render a preview
     local vars = nil
-    if L and L.BuildVariables then
-        vars = L.BuildVariables()
-    end
+    vars = DiscordPresence_Vars.Build()
     if not vars then
-        -- fallback sample data for when not logged in
-        vars = {
-            player_name = "Player", player_level = "1", player_class = "Warrior",
-            player_race = "Human", zone = "Unknown", subzone = "",
-        }
+        vars = DiscordPresence_Vars.SampleData()
     end
 
     local fields = { "details", "state", "large_image", "large_text", "small_image", "small_text" }

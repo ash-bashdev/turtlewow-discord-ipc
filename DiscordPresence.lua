@@ -1,126 +1,37 @@
 --[[
-    DiscordPresence.lua - Main addon logic
-    
-    Requires the discord_rpc.dll to be loaded via VanillaFixes / dlls.txt.
-    Collects game state, builds template variables, renders templates,
-    and calls DiscordSetPresence().
+    DiscordPresence.lua - Main addon entrypoint
+
+    Orchestrates all modules:
+      Template.lua   - template engine
+      Presets.lua    - built-in presets
+      Variables.lua  - game state collection
+      Config.lua     - GUI + profile management
+
+    Handles: events, timer, compiled template cache, slash commands.
 ]]
 
 DiscordPresence_DB = DiscordPresence_DB or {}
 
 local DP = CreateFrame("Frame", "DiscordPresenceFrame", UIParent)
 
--- Locals
+local UPDATE_INTERVAL = 15
+local QUICK_UPDATE = 0.25
+local DEBUG = false
+local PREFIX = "|cff7289DA[DiscordPresence]|r "
 
-local L = {
-    UPDATE_INTERVAL = 15,
-    QUICK_UPDATE = 0.25,
-    DEBUG = false,
-    MAX_LEN = 128,
-    PREFIX = "|cff7289DA[DiscordPresence]|r ",
-}
-
-function L.Debug(msg)
-    if not L.DEBUG then return end
-    DEFAULT_CHAT_FRAME:AddMessage(L.PREFIX .. tostring(msg))
+local function Debug(msg)
+    if not DEBUG then return end
+    DEFAULT_CHAT_FRAME:AddMessage(PREFIX .. tostring(msg))
 end
 
-function L.Print(msg)
+local function Print(msg)
     msg = tostring(msg)
     for line in string.gfind(msg, "[^\n]+") do
-        DEFAULT_CHAT_FRAME:AddMessage(L.PREFIX .. line)
+        DEFAULT_CHAT_FRAME:AddMessage(PREFIX .. line)
     end
 end
 
-function L.Truncate(s, limit)
-    if not s then return "" end
-    if string.len(s) > limit then
-        return string.sub(s, 1, limit - 3) .. "..."
-    end
-    return s
-end
-
--- Build template variables from current game state
-
-function L.BuildVariables()
-    local playerName = UnitName("player")
-    if not playerName then return nil end
-
-    local localizedClass = UnitClass("player")
-    local localizedRace = UnitRace("player")
-    local playerLevel = UnitLevel("player")
-    local zoneName = GetRealZoneText()
-    local subZone = GetMinimapZoneText()
-
-    if not zoneName or zoneName == "" then zoneName = "Unknown" end
-    if subZone == zoneName then subZone = "" end
-
-    local numRaid = GetNumRaidMembers and GetNumRaidMembers() or 0
-    local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
-    local isDead = UnitIsDeadOrGhost("player")
-
-    local xp = UnitXP and UnitXP("player") or 0
-    local xpMax = UnitXPMax and UnitXPMax("player") or 0
-
-    local vars = {
-        player_name = playerName or "",
-        player_level = playerLevel and tostring(playerLevel) or "",
-        player_class = localizedClass or "",
-        player_race = localizedRace or "",
-        zone = zoneName or "",
-        subzone = subZone or "",
-        is_dead = isDead and "1" or "",
-        in_party = (numParty > 0 and numRaid == 0) and "1" or "",
-        in_raid = (numRaid > 0) and "1" or "",
-        party_size = (numParty > 0 and numRaid == 0) and tostring(numParty + 1) or "",
-        raid_size = (numRaid > 0) and tostring(numRaid) or "",
-        xp = tostring(xp),
-        xp_max = tostring(xpMax),
-        xp_remaining = tostring(xpMax - xp),
-        is_max_level = (xpMax == 0) and "1" or "",
-    }
-
-    -- leader
-    local isLeader = IsPartyLeader and IsPartyLeader() or false
-    vars.is_leader = isLeader and "1" or ""
-    if numRaid > 0 or numParty > 0 then
-        if UnitIsPartyLeader and UnitIsPartyLeader("player") then
-            vars.leader_name = playerName
-        else
-            for i = 1, 4 do
-                local unit = "party" .. i
-                if UnitIsPartyLeader and UnitIsPartyLeader(unit) then
-                    vars.leader_name = UnitName(unit) or ""
-                    break
-                end
-            end
-        end
-    end
-    if not vars.leader_name then vars.leader_name = "" end
-
-    -- party members (party1 through party4)
-    for i = 1, 4 do
-        local unit = "party" .. i
-        local name = UnitName(unit)
-        local p = "party" .. i .. "_"
-        if name then
-            vars[p .. "name"] = name
-            vars[p .. "level"] = tostring(UnitLevel(unit) or "")
-            vars[p .. "class"] = UnitClass(unit) or ""
-            vars[p .. "race"] = UnitRace(unit) or ""
-        else
-            vars[p .. "name"] = ""
-            vars[p .. "level"] = ""
-            vars[p .. "class"] = ""
-            vars[p .. "race"] = ""
-        end
-    end
-
-    return vars
-end
-
--- Compiled template cache
-
+-- compiled template cache
 local compiledTemplates = nil
 
 function DiscordPresence_CompileTemplates()
@@ -136,71 +47,53 @@ function DiscordPresence_CompileTemplates()
         local key = fields[i]
         local nodes, err = DiscordPresence_Template.Compile(t[key] or "")
         if err then
-            L.Print("Template error in " .. key .. ": " .. err)
+            Print("Template error in " .. key .. ": " .. err)
             had_error = true
         end
         compiled[key] = nodes
     end
-    if had_error then L.Print("Using templates with errors - some fields may be empty") end
+    if had_error then Print("Using templates with errors - some fields may be empty") end
     compiledTemplates = compiled
-    L.Debug("Templates compiled")
+    Debug("Templates compiled")
 end
-
--- Render all fields from compiled templates + vars
-
-function L.RenderFields(vars)
-    if not compiledTemplates then return nil end
-    return {
-        details    = L.Truncate(DiscordPresence_Template.Render(compiledTemplates.details, vars), L.MAX_LEN),
-        state      = L.Truncate(DiscordPresence_Template.Render(compiledTemplates.state, vars), L.MAX_LEN),
-        largeImage = DiscordPresence_Template.Render(compiledTemplates.large_image, vars),
-        largeText  = L.Truncate(DiscordPresence_Template.Render(compiledTemplates.large_text, vars), L.MAX_LEN),
-        smallImage = DiscordPresence_Template.Render(compiledTemplates.small_image, vars),
-        smallText  = L.Truncate(DiscordPresence_Template.Render(compiledTemplates.small_text, vars), L.MAX_LEN),
-    }
-end
-
--- Send presence update
 
 local function UpdatePresence()
     if not DiscordSetPresence then
-        L.Debug("DLL not loaded")
+        Debug("DLL not loaded")
         return
     end
-    local vars = L.BuildVariables()
+    local vars = DiscordPresence_Vars.Build()
     if not vars then return end
     if not compiledTemplates then DiscordPresence_CompileTemplates() end
 
-    local f = L.RenderFields(vars)
+    local f = DiscordPresence_Vars.RenderFields(compiledTemplates, vars)
     if not f then return end
 
     DiscordSetPresence(f.details, f.state, f.largeImage, f.largeText, f.smallImage, f.smallText)
-    L.Debug("Updated: " .. f.details .. " | " .. f.state)
+    Debug("Updated: " .. f.details .. " | " .. f.state)
 end
 
--- OnUpdate timer
-
+-- timer
 DP:SetScript("OnUpdate", function()
     if (this.tick or 1) > GetTime() then return end
-    this.tick = GetTime() + L.UPDATE_INTERVAL
+    this.tick = GetTime() + UPDATE_INTERVAL
     if not UnitName("player") then return end
     UpdatePresence()
 end)
 
--- Events (dispatch table)
-
+-- events (dispatch table)
 local function QuickUpdate()
-    DP.tick = GetTime() + L.QUICK_UPDATE
+    DP.tick = GetTime() + QUICK_UPDATE
 end
 
 local EVENT_HANDLERS = {
     VARIABLES_LOADED = function()
         DiscordPresence_Config.InitDefaults()
         DiscordPresence_CompileTemplates()
-        L.Debug("Config loaded, templates compiled")
+        Debug("Config loaded, templates compiled")
     end,
     PLAYER_LOGIN = function()
-        L.Debug("Player logged in")
+        Debug("Player logged in")
         QuickUpdate()
     end,
     PLAYER_LOGOUT = function()
@@ -208,14 +101,14 @@ local EVENT_HANDLERS = {
     end,
 }
 
-local QUICK_UPDATE_EVENTS = {
+local QUICK_EVENTS = {
     "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS",
     "PARTY_MEMBERS_CHANGED", "RAID_ROSTER_UPDATE",
     "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST",
     "PLAYER_LEVEL_UP", "PLAYER_XP_UPDATE",
 }
 
-for _, evt in ipairs(QUICK_UPDATE_EVENTS) do
+for _, evt in ipairs(QUICK_EVENTS) do
     EVENT_HANDLERS[evt] = QuickUpdate
 end
 
@@ -228,41 +121,39 @@ DP:SetScript("OnEvent", function()
     if handler then handler() end
 end)
 
--- Slash commands (dispatch table)
-
+-- slash commands (dispatch table)
 local COMMANDS = {}
 
 COMMANDS["status"] = function()
     if DiscordIsConnected and DiscordIsConnected() then
-        L.Print("Connected to Discord")
+        Print("Connected to Discord")
     else
-        L.Print("Not connected to Discord")
+        Print("Not connected to Discord")
     end
-    L.Print("Active: " .. (DiscordPresence_DB.active or "none"))
-    -- preview rendered fields
-    local vars = L.BuildVariables()
+    Print("Active: " .. (DiscordPresence_DB.active or "none"))
+    local vars = DiscordPresence_Vars.Build()
     if vars and compiledTemplates then
-        local f = L.RenderFields(vars)
+        local f = DiscordPresence_Vars.RenderFields(compiledTemplates, vars)
         if f then
-            L.Print("  details:     " .. f.details)
-            L.Print("  state:       " .. f.state)
-            L.Print("  large_image: " .. f.largeImage)
-            L.Print("  large_text:  " .. f.largeText)
-            L.Print("  small_image: " .. f.smallImage)
-            L.Print("  small_text:  " .. f.smallText)
+            Print("  details:     " .. f.details)
+            Print("  state:       " .. f.state)
+            Print("  large_image: " .. f.largeImage)
+            Print("  large_text:  " .. f.largeText)
+            Print("  small_image: " .. f.smallImage)
+            Print("  small_text:  " .. f.smallText)
         end
     end
 end
 
 COMMANDS["update"] = function()
     UpdatePresence()
-    L.Print("Forced presence update")
+    Print("Forced presence update")
 end
 
 COMMANDS["clear"] = function()
     if DiscordClearPresence then
         DiscordClearPresence()
-        L.Print("Presence cleared")
+        Print("Presence cleared")
     end
 end
 
@@ -271,62 +162,61 @@ COMMANDS["config"] = function()
 end
 
 COMMANDS["debug"] = function()
-    L.DEBUG = not L.DEBUG
-    L.Print("Debug mode: " .. (L.DEBUG and "ON" or "OFF"))
+    DEBUG = not DEBUG
+    Print("Debug mode: " .. (DEBUG and "ON" or "OFF"))
 end
 
--- /dp preset <subcommand>
 COMMANDS["preset"] = function(args)
     local sub = args or ""
     local _, _, cmd, rest = string.find(sub, "^(%S+)%s*(.*)")
     if not cmd then cmd = "" end
 
     if cmd == "list" then
-        L.Print("Profiles: " .. table.concat(DiscordPresence_Config.GetProfileNames(), ", "))
+        Print("Profiles: " .. table.concat(DiscordPresence_Config.GetProfileNames(), ", "))
     elseif cmd == "save" and rest ~= "" then
         if DiscordPresence_Config.SaveProfileAs(rest) then
-            L.Print("Saved as: " .. rest)
+            Print("Saved as: " .. rest)
         else
-            L.Print("Can't save")
+            Print("Can't save")
         end
     elseif cmd == "clone" and rest ~= "" then
         if DiscordPresence_Config.CloneProfile(rest) then
-            L.Print("Cloned to: " .. rest)
+            Print("Cloned to: " .. rest)
         else
-            L.Print("Can't clone (name empty or exists)")
+            Print("Can't clone (name empty or exists)")
         end
     elseif cmd == "rename" then
         local _, _, old, new = string.find(rest, "^(%S+)%s+(%S+)")
         if old and new then
             if DiscordPresence_Config.RenameProfile(old, new) then
-                L.Print("Renamed: " .. old .. " -> " .. new)
+                Print("Renamed: " .. old .. " -> " .. new)
             else
-                L.Print("Can't rename (not found, protected, or target exists)")
+                Print("Can't rename (not found, protected, or target exists)")
             end
         else
-            L.Print("Usage: /dp preset rename <old> <new>")
+            Print("Usage: /dp preset rename <old> <new>")
         end
     elseif cmd == "delete" and rest ~= "" then
         if DiscordPresence_Config.DeleteProfile(rest) then
-            L.Print("Deleted: " .. rest)
+            Print("Deleted: " .. rest)
         else
-            L.Print("Can't delete (not found or built-in)")
+            Print("Can't delete (not found or built-in)")
         end
     elseif cmd == "reset" and rest ~= "" then
         if DiscordPresence_Config.ResetProfile(rest) then
-            L.Print("Reset: " .. rest)
+            Print("Reset: " .. rest)
         else
-            L.Print("Can only reset built-in profiles (minimal/default/detailed)")
+            Print("Can only reset built-in profiles (minimal/default/detailed)")
         end
     else
         if cmd ~= "" then
             if DiscordPresence_Config.LoadProfile(cmd) then
-                L.Print("Loaded: " .. cmd)
+                Print("Loaded: " .. cmd)
             else
-                L.Print("Not found: " .. cmd)
+                Print("Not found: " .. cmd)
             end
         else
-            L.Print([[
+            Print([[
 Preset commands:
   /dp preset <name>              - load a profile
   /dp preset list                - list all profiles
@@ -349,12 +239,13 @@ SlashCmdList["DISCORDPRESENCE"] = function(msg)
     if handler then
         handler(rest)
     else
-        L.Print("Commands:")
-        L.Print("  /dp status     - connection + template preview")
-        L.Print("  /dp update     - force presence update")
-        L.Print("  /dp clear      - clear presence")
-        L.Print("  /dp config     - open config gui")
-        L.Print("  /dp preset     - preset/profile management")
-        L.Print("  /dp debug      - toggle debug messages")
+        Print([[
+Commands:
+  /dp status     - connection + template preview
+  /dp update     - force presence update
+  /dp clear      - clear presence
+  /dp config     - open config gui
+  /dp preset     - preset/profile management
+  /dp debug      - toggle debug messages]])
     end
 end
