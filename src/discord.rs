@@ -1,14 +1,8 @@
-//! Discord Rich Presence IPC client.
-//!
-//! Speaks the Discord RPC protocol over Windows named pipes:
-//! - Binary framing: `[opcode: u32][length: u32][json: u8...]`
-//! - Handshake (opcode 0) → READY response
-//! - SET_ACTIVITY (opcode 1) to update presence
-//!
-//! Reference: <https://discord.com/developers/docs/topics/rpc>
-
 use std::io;
 use std::ptr;
+
+use serde::Serialize;
+use serde_json::json;
 
 use windows_sys::Win32::Foundation::{
     CloseHandle, GENERIC_READ, GENERIC_WRITE, HANDLE, INVALID_HANDLE_VALUE,
@@ -16,7 +10,6 @@ use windows_sys::Win32::Foundation::{
 use windows_sys::Win32::Storage::FileSystem::{CreateFileA, ReadFile, WriteFile, OPEN_EXISTING};
 use windows_sys::Win32::System::Pipes::PeekNamedPipe;
 
-/// Discord IPC opcodes.
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Opcode {
@@ -40,14 +33,12 @@ impl Opcode {
     }
 }
 
-/// RAII wrapper for a Windows HANDLE. Closes on drop.
 struct OwnedHandle(HANDLE);
 
 impl OwnedHandle {
     fn is_valid(&self) -> bool {
         self.0 != INVALID_HANDLE_VALUE && !self.0.is_null()
     }
-
     fn raw(&self) -> HANDLE {
         self.0
     }
@@ -62,7 +53,6 @@ impl Drop for OwnedHandle {
     }
 }
 
-/// Discord IPC connection state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum State {
     Disconnected,
@@ -70,7 +60,6 @@ enum State {
     Ready,
 }
 
-/// Discord IPC client. Owns the pipe handle and all buffers.
 pub struct DiscordIpc {
     pipe: Option<OwnedHandle>,
     state: State,
@@ -96,12 +85,10 @@ impl DiscordIpc {
         self.state == State::Ready && self.pipe.as_ref().map_or(false, |h| h.is_valid())
     }
 
-    /// Try to connect to Discord's named pipe (tries ipc-0 through ipc-9).
     pub fn connect(&mut self) -> io::Result<()> {
         if self.state != State::Disconnected {
             return Ok(());
         }
-
         for i in 0..10 {
             let name = format!("\\\\.\\pipe\\discord-ipc-{}\0", i);
             let handle = unsafe {
@@ -115,41 +102,35 @@ impl DiscordIpc {
                     ptr::null_mut(),
                 )
             };
-
             if handle != INVALID_HANDLE_VALUE {
                 self.pipe = Some(OwnedHandle(handle));
                 self.state = State::Connected;
                 return Ok(());
             }
         }
-
         Err(io::Error::new(
             io::ErrorKind::NotFound,
-            "Discord IPC pipe not found (tried 0-9)",
+            "Discord IPC pipe not found",
         ))
     }
 
-    /// Disconnect and release the pipe handle.
     pub fn disconnect(&mut self) {
-        // Best-effort close message
         if self.state == State::Ready {
             let _ = self.send_frame(Opcode::Close, b"{}");
         }
-        self.pipe = None; // OwnedHandle::drop closes it
+        self.pipe = None;
         self.state = State::Disconnected;
     }
 
-    /// Perform the Discord RPC handshake.
     pub fn handshake(&mut self) -> io::Result<()> {
         if self.state != State::Connected {
             return Err(io::Error::new(io::ErrorKind::NotConnected, "not connected"));
         }
+        let payload = json!({ "v": 1, "client_id": self.client_id });
+        self.send_frame(Opcode::Handshake, payload.to_string().as_bytes())?;
 
-        let json = format!("{{\"v\":1,\"client_id\":\"{}\"}}", self.client_id);
-        self.send_frame(Opcode::Handshake, json.as_bytes())?;
-
-        let (op, payload) = self.recv_frame()?;
-        if op == Opcode::Frame && payload.contains("\"READY\"") {
+        let (op, response) = self.recv_frame()?;
+        if op == Opcode::Frame && response.contains("\"READY\"") {
             self.state = State::Ready;
             Ok(())
         } else {
@@ -160,7 +141,6 @@ impl DiscordIpc {
         }
     }
 
-    /// Send a SET_ACTIVITY command.
     pub fn set_activity(
         &mut self,
         details: &str,
@@ -177,103 +157,64 @@ impl DiscordIpc {
             return Err(io::Error::new(io::ErrorKind::NotConnected, "not ready"));
         }
 
-        let nonce = self.next_nonce();
-        let pid = std::process::id();
+        let mut activity = json!({
+            "details": details,
+            "state": state,
+        });
 
-        let timestamps = if start_timestamp > 0 {
-            format!(",\"timestamps\":{{\"start\":{}}}", start_timestamp)
-        } else {
-            String::new()
-        };
+        if start_timestamp > 0 {
+            activity["timestamps"] = json!({ "start": start_timestamp });
+        }
 
-        let assets = {
-            let has_large = !large_image.is_empty();
-            let has_small = !small_image.is_empty();
-            if has_large || has_small {
-                let mut parts = Vec::new();
-                if has_large {
-                    parts.push(format!(
-                        "\"large_image\":\"{}\",\"large_text\":\"{}\"",
-                        json_escape(large_image),
-                        json_escape(large_text)
-                    ));
-                }
-                if has_small {
-                    parts.push(format!(
-                        "\"small_image\":\"{}\",\"small_text\":\"{}\"",
-                        json_escape(small_image),
-                        json_escape(small_text)
-                    ));
-                }
-                format!(",\"assets\":{{{}}}", parts.join(","))
-            } else {
-                String::new()
+        let has_large = !large_image.is_empty();
+        let has_small = !small_image.is_empty();
+        if has_large || has_small {
+            let mut assets = serde_json::Map::new();
+            if has_large {
+                assets.insert("large_image".into(), json!(large_image));
+                assets.insert("large_text".into(), json!(large_text));
             }
-        };
+            if has_small {
+                assets.insert("small_image".into(), json!(small_image));
+                assets.insert("small_text".into(), json!(small_text));
+            }
+            activity["assets"] = serde_json::Value::Object(assets);
+        }
 
-        let party = if party_size > 0 && party_max > 0 {
-            format!(
-                ",\"party\":{{\"id\":\"wow-party\",\"size\":[{},{}]}}",
-                party_size, party_max
-            )
-        } else {
-            String::new()
-        };
+        if party_size > 0 && party_max > 0 {
+            activity["party"] = json!({
+                "id": "wow-party",
+                "size": [party_size, party_max],
+            });
+        }
 
-        let json = format!(
-            concat!(
-                "{{",
-                "\"cmd\":\"SET_ACTIVITY\",",
-                "\"args\":{{",
-                "\"pid\":{pid},",
-                "\"activity\":{{",
-                "\"details\":\"{details}\",",
-                "\"state\":\"{state}\"",
-                "{timestamps}",
-                "{assets}",
-                "{party}",
-                "}}",
-                "}},",
-                "\"nonce\":\"{nonce}\"",
-                "}}"
-            ),
-            pid = pid,
-            details = json_escape(details),
-            state = json_escape(state),
-            timestamps = timestamps,
-            assets = assets,
-            party = party,
-            nonce = nonce,
-        );
+        let payload = json!({
+            "cmd": "SET_ACTIVITY",
+            "args": {
+                "pid": std::process::id(),
+                "activity": activity,
+            },
+            "nonce": self.next_nonce().to_string(),
+        });
 
-        self.send_frame(Opcode::Frame, json.as_bytes())
+        self.send_frame(Opcode::Frame, payload.to_string().as_bytes())
     }
 
-    /// Clear the rich presence.
     pub fn clear_activity(&mut self) -> io::Result<()> {
         if self.state != State::Ready {
             return Err(io::Error::new(io::ErrorKind::NotConnected, "not ready"));
         }
-
-        let nonce = self.next_nonce();
-        let pid = std::process::id();
-
-        let json = format!(
-            concat!(
-                "{{",
-                "\"cmd\":\"SET_ACTIVITY\",",
-                "\"args\":{{\"pid\":{pid},\"activity\":null}},",
-                "\"nonce\":\"{nonce}\"",
-                "}}"
-            ),
-            pid = pid,
-            nonce = nonce,
-        );
-
-        self.send_frame(Opcode::Frame, json.as_bytes())
+        let payload = json!({
+            "cmd": "SET_ACTIVITY",
+            "args": {
+                "pid": std::process::id(),
+                "activity": null,
+            },
+            "nonce": self.next_nonce().to_string(),
+        });
+        self.send_frame(Opcode::Frame, payload.to_string().as_bytes())
     }
 
-    /// Drain any pending responses from Discord (pings, closes, etc).
     pub fn drain_responses(&mut self) -> io::Result<()> {
         while self.has_data()? {
             let (op, payload) = self.recv_frame()?;
@@ -289,13 +230,11 @@ impl DiscordIpc {
                         "Discord sent CLOSE",
                     ));
                 }
-                _ => {} // FRAME responses to SET_ACTIVITY -- ignore
+                _ => {}
             }
         }
         Ok(())
     }
-
-    // --- Private helpers ---
 
     fn pipe_handle(&self) -> io::Result<HANDLE> {
         match &self.pipe {
@@ -324,18 +263,15 @@ impl DiscordIpc {
                 ptr::null_mut(),
             )
         };
-
         if ok == 0 || written != self.send_buf.len() as u32 {
             return Err(io::Error::last_os_error());
         }
-
         Ok(())
     }
 
     fn recv_frame(&mut self) -> io::Result<(Opcode, String)> {
         let handle = self.pipe_handle()?;
 
-        // Read 8-byte header
         let mut header = [0u8; 8];
         let mut bytes_read: u32 = 0;
         let ok = unsafe {
@@ -357,7 +293,6 @@ impl DiscordIpc {
         let opcode = Opcode::from_u32(raw_opcode)
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "unknown opcode"))?;
 
-        // Read payload, growing buffer if needed
         if self.recv_buf.len() < payload_len {
             self.recv_buf.resize(payload_len, 0);
         }
@@ -412,21 +347,4 @@ impl Drop for DiscordIpc {
     fn drop(&mut self) {
         self.disconnect();
     }
-}
-
-/// Escape a string for safe JSON embedding.
-fn json_escape(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {} // skip control chars
-            c => out.push(c),
-        }
-    }
-    out
 }
