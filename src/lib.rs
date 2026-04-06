@@ -1,30 +1,19 @@
-//! Discord Rich Presence + Overlay DLL for WoW 1.12.1 (Turtle WoW)
+//! Discord Rich Presence DLL for WoW 1.12.1 (Turtle WoW)
 //!
 //! Loaded by VanillaFixes via `dlls.txt`.
 //!
-//! # Backends (selected via Cargo features)
-//!
-//! - `game-sdk` (default): Uses Discord Game SDK for presence + overlay support.
-//!   Requires `discord_game_sdk.dll` in the game directory.
-//! - `raw-ipc`: Uses raw named pipe IPC. Lighter, no overlay, no SDK dependency.
-//!
-//! # Architecture
-//!
-//! - DllMain installs a bootstrap hook chain to register Lua functions
-//!   at the right time (after WoW's Lua state is initialized)
-//! - A background thread manages the Discord connection and sends presence updates
-//! - Lua callbacks write into shared state (Mutex+Condvar), the background
-//!   thread picks it up and sends to Discord
+//! DllMain installs a bootstrap hook chain to register Lua functions
+//! at the right time (after WoW's Lua state is initialized).
+//! A background thread manages the Discord IPC pipe and sends presence updates.
+//! Lua callbacks write into shared state (Mutex+Condvar), the background
+//! thread picks it up and sends to Discord.
 
-#[cfg(feature = "game-sdk")]
-mod discord_sdk;
-#[cfg(feature = "raw-ipc")]
 mod discord;
 mod wow;
 
 use std::ffi::{c_int, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -37,18 +26,8 @@ use windows_sys::Win32::System::Threading::Sleep;
 // Configuration
 // ---------------------------------------------------------------------------
 
-/// Discord Application ID
-#[cfg(feature = "game-sdk")]
-const DISCORD_CLIENT_ID: i64 = 1490096071706284192;
-#[cfg(feature = "raw-ipc")]
 const DISCORD_CLIENT_ID: &str = "1490096071706284192";
-
-/// How long the background thread waits for new data before doing maintenance
 const IDLE_TIMEOUT: Duration = Duration::from_secs(15);
-
-/// SDK callback interval (~60fps to keep overlay responsive)
-#[cfg(feature = "game-sdk")]
-const SDK_CALLBACK_INTERVAL_MS: u32 = 16;
 
 // ---------------------------------------------------------------------------
 // Static detours for hooking game functions
@@ -128,8 +107,6 @@ impl SharedState {
         self.connected.load(Ordering::Relaxed)
     }
 
-    /// Block until notified or timeout. Used by raw-ipc backend.
-    #[cfg(feature = "raw-ipc")]
     fn wait_for_work(&self, timeout: Duration) -> bool {
         let guard = match self.presence.lock() {
             Ok(g) => g,
@@ -147,10 +124,10 @@ impl SharedState {
     }
 }
 
-static mut SHARED: Option<Arc<SharedState>> = None;
+static SHARED: OnceLock<Arc<SharedState>> = OnceLock::new();
 
 fn shared() -> Option<&'static Arc<SharedState>> {
-    unsafe { SHARED.as_ref() }
+    SHARED.get()
 }
 
 fn start_time() -> i64 {
@@ -287,65 +264,6 @@ fn sys_msg_init_detour() {
 
 fn discord_thread(state: Arc<SharedState>) {
     let ts = start_time();
-
-    #[cfg(feature = "game-sdk")]
-    discord_thread_sdk(&state, ts);
-
-    #[cfg(feature = "raw-ipc")]
-    discord_thread_ipc(&state, ts);
-}
-
-#[cfg(feature = "game-sdk")]
-fn discord_thread_sdk(state: &Arc<SharedState>, ts: i64) {
-    loop {
-        if state.should_shutdown() { return; }
-
-        let sdk = match discord_sdk::DiscordSdk::new(DISCORD_CLIENT_ID) {
-            Ok(s) => s,
-            Err(_) => {
-                state.set_connected(false);
-                for _ in 0..(IDLE_TIMEOUT.as_millis() / 100) {
-                    if state.should_shutdown() { return; }
-                    unsafe { Sleep(100) };
-                }
-                continue;
-            }
-        };
-
-        state.set_connected(true);
-
-        while !state.should_shutdown() {
-            if !sdk.run_callbacks() {
-                state.set_connected(false);
-                break;
-            }
-
-            if let Some(data) = state.take_if_dirty() {
-                if data.clear {
-                    sdk.clear_activity();
-                } else {
-                    let mut activity = discord_sdk::DiscordActivity::new();
-                    activity.type_ = discord_sdk::EDiscordActivityType::Playing;
-                    activity.timestamps.start = ts;
-
-                    discord_sdk::DiscordActivity::set_field(&mut activity.details, &data.details);
-                    discord_sdk::DiscordActivity::set_field(&mut activity.state, &data.state);
-                    discord_sdk::DiscordActivity::set_field(&mut activity.assets.large_image, &data.large_image);
-                    discord_sdk::DiscordActivity::set_field(&mut activity.assets.large_text, &data.large_text);
-                    discord_sdk::DiscordActivity::set_field(&mut activity.assets.small_image, &data.small_image);
-                    discord_sdk::DiscordActivity::set_field(&mut activity.assets.small_text, &data.small_text);
-
-                    sdk.update_activity(&mut activity);
-                }
-            }
-
-            unsafe { Sleep(SDK_CALLBACK_INTERVAL_MS) };
-        }
-    }
-}
-
-#[cfg(feature = "raw-ipc")]
-fn discord_thread_ipc(state: &Arc<SharedState>, ts: i64) {
     let mut ipc = discord::DiscordIpc::new(DISCORD_CLIENT_ID);
 
     while !state.should_shutdown() {
@@ -415,7 +333,7 @@ unsafe extern "system" fn DllMain(module: HMODULE, reason: u32, _reserved: *mut 
             DisableThreadLibraryCalls(module);
 
             let state = Arc::new(SharedState::new());
-            SHARED = Some(state.clone());
+            let _ = SHARED.set(state.clone());
 
             // Install bootstrap hook
             let sys_msg_fn: wow::SysMsgInitializeFn =
@@ -436,11 +354,10 @@ unsafe extern "system" fn DllMain(module: HMODULE, reason: u32, _reserved: *mut 
         }
 
         DLL_PROCESS_DETACH => {
-            if let Some(state) = SHARED.as_ref() {
+            if let Some(state) = SHARED.get() {
                 state.signal_shutdown();
             }
             Sleep(500);
-            SHARED = None;
         }
 
         _ => {}

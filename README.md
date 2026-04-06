@@ -151,16 +151,16 @@ for a level 38 undead priest named Beltmagnet in goldshire with a 3-person party
 
 so right now it works via the windows socket
 
-i also have code here that uses the discord game sdk. my hope was that this would help discord with the hook to detect turtlewow correctly, but it doesn't and i dont know why.
+i also had this working using the discord game sdk (just setup the same hooks using ffi for that thing).0
+my hope was that this would help discord with the hook to detect turtlewow correctly, but it doesn't and i dont know why.
 
-so the code is feature flagged out and i don't think it's worth using. but it's there in case maybe it can work one day.
+maybe i will add it back and try it, or anyone is welcome to do it. it's just a lot of lines of code and clutters up the code even behind a feature flag and i dont want to maintain it if im not using it.
 
-## linux / wine
+## using with wine
 
 the dll writes to the windows named pipe `\\.\pipe\discord-ipc-0`. under wine/proton you need a bridge to forward this to the linux discord socket.
 
 i use: [rpc-bridge](https://github.com/EnderIce2/rpc-bridge) -- but any of them should work.
-
 
 ## license
 
