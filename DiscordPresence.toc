@@ -1,0 +1,11 @@
+## Interface: 11200
+## Title: |cff7289DADiscord|cffffffffPresence
+## Author: turtlewow-discord-ipc
+## Notes: Discord Rich Presence integration via injected DLL. Shows your character, zone, and group status on Discord.
+## Version: 1.0.0
+## SavedVariables: DiscordPresence_DB
+
+lua\Template.lua
+lua\Presets.lua
+lua\Config.lua
+DiscordPresence.lua

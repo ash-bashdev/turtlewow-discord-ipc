@@ -1,0 +1,5 @@
+[build]
+# This DLL targets 32-bit Windows. Setting this here means both `cargo build`
+# and rust-analyzer will check against the correct target, so fastcall and
+# windows-sys types resolve properly.
+target = "i686-pc-windows-gnu"
