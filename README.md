@@ -139,20 +139,20 @@ renders as: `Beltmagnet - Level 60` or `Beltmagnet - Level 60 (Dead)`
 
 ```
 details:
-  {{player_name}} - Level {{player_level~}}
-  {{~#if is_dead}} (Dead){{/if}}
+{{player_name}} - Level {{player_level~}}
+{{~#if is_dead}} (Dead){{/if}}
 
 state:
-  {{zone~}}
-  {{~#if subzone~}}, {{subzone~}}{{~/if~}}
-  {{~#if in_raid}} | Raid ({{raid_size}}){{~/if~}}
-  {{~#if in_party}} | Party ({{party_size}}){{~/if}}
+{{zone~}}
+{{~#if subzone~}}, {{subzone~}}{{~/if~}}
+{{~#if in_raid}} | Raid ({{raid_size}}){{~/if~}}
+{{~#if in_party}} | Party ({{party_size}}){{~/if}}
 
 small_image:
-  class_icons-{{player_class | lower}}
+class_icons-{{player_class | lower}}
 
 small_text:
-  {{player_race}} {{player_class}}
+{{player_race}} {{player_class}}
 ```
 
 for a level 38 undead priest named Beltmagnet in goldshire with a 3-person party, this renders:
@@ -162,8 +162,16 @@ for a level 38 undead priest named Beltmagnet in goldshire with a 3-person party
 - **small icon:** `class_icons-priest`
 - **small text:** `Undead Priest`
 
+## implementation
+
+so right now it works via the windows socket
+
+i also have code here that uses the discord game sdk. my hope was that this would help discord with the hook to detect turtlewow correctly, but it doesn't and i dont know why.
+
+so the code is feature flagged out and i don't think it's worth using. but it's there in case maybe it can work one day.
+
 ## license
 
-[unlicense](https://unlicense.org/) -- public domain
+[unlicense](https://unlicense.org/)
 
 
