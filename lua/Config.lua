@@ -1,9 +1,9 @@
 --[[
     Config.lua - Configuration GUI and profile management for Discord Presence
 
-    Built-in presets (minimal/default/detailed) are read-only.
-    Editing a preset auto-clones it as a user profile.
-    User profiles are stored in DiscordPresence_DB.profiles.
+    On first run, built-in presets (minimal/default/detailed) are seeded into
+    the user's profile list. After that they're regular editable profiles.
+    The three built-in names can't be deleted, but can be edited and reset.
 ]]
 
 DiscordPresence_Config = {}
@@ -28,7 +28,8 @@ local TEMPLATE_FIELDS = {
 
 local editors = {}
 
--- Helpers
+-- names that can't be deleted (but can be edited and reset)
+local PROTECTED_NAMES = { minimal = true, default = true, detailed = true }
 
 local function CopyTemplates(src)
     local copy = {}
@@ -38,19 +39,28 @@ local function CopyTemplates(src)
     return copy
 end
 
-local function IsBuiltIn(name)
-    return DiscordPresence_Presets.Get(name) ~= nil
-end
-
--- Init
-
+-- Init: seed built-in presets into profiles if they don't exist
 function DiscordPresence_Config.InitDefaults()
     if not DiscordPresence_DB then DiscordPresence_DB = {} end
     if not DiscordPresence_DB.profiles then DiscordPresence_DB.profiles = {} end
     if not DiscordPresence_DB.active then DiscordPresence_DB.active = "default" end
-    if not DiscordPresence_DB.templates then
-        local default = DiscordPresence_Presets.GetDefault()
-        DiscordPresence_DB.templates = CopyTemplates(default.templates)
+
+    -- seed built-ins into profiles on first run
+    local presets = DiscordPresence_Presets.list
+    for i = 1, table.getn(presets) do
+        local p = presets[i]
+        if not DiscordPresence_DB.profiles[p.name] then
+            DiscordPresence_DB.profiles[p.name] = CopyTemplates(p.templates)
+        end
+    end
+
+    -- load active profile into templates
+    local active = DiscordPresence_DB.active
+    if DiscordPresence_DB.profiles[active] then
+        DiscordPresence_DB.templates = CopyTemplates(DiscordPresence_DB.profiles[active])
+    else
+        DiscordPresence_DB.active = "default"
+        DiscordPresence_DB.templates = CopyTemplates(DiscordPresence_DB.profiles["default"])
     end
 end
 
@@ -58,14 +68,12 @@ function DiscordPresence_Config.GetTemplates()
     return DiscordPresence_DB.templates
 end
 
--- Profile management
-
--- Load a built-in preset (read-only, editing will auto-clone)
-function DiscordPresence_Config.ApplyPreset(name)
-    local preset = DiscordPresence_Presets.Get(name)
-    if not preset then return false end
+-- Load a profile (by name)
+function DiscordPresence_Config.LoadProfile(name)
+    if not DiscordPresence_DB.profiles then return false end
+    if not DiscordPresence_DB.profiles[name] then return false end
     DiscordPresence_DB.active = name
-    DiscordPresence_DB.templates = CopyTemplates(preset.templates)
+    DiscordPresence_DB.templates = CopyTemplates(DiscordPresence_DB.profiles[name])
     DiscordPresence_Config.RefreshEditors()
     if DiscordPresence_CompileTemplates then
         DiscordPresence_CompileTemplates()
@@ -73,10 +81,18 @@ function DiscordPresence_Config.ApplyPreset(name)
     return true
 end
 
--- Save current templates as a user profile
-function DiscordPresence_Config.SaveProfile(name)
+-- Save current templates to the active profile
+function DiscordPresence_Config.SaveActive()
+    local active = DiscordPresence_DB.active or ""
+    if active == "" then return false end
+    if not DiscordPresence_DB.profiles then DiscordPresence_DB.profiles = {} end
+    DiscordPresence_DB.profiles[active] = CopyTemplates(DiscordPresence_DB.templates)
+    return true
+end
+
+-- Save current templates as a new named profile
+function DiscordPresence_Config.SaveProfileAs(name)
     if not name or name == "" then return false end
-    if IsBuiltIn(name) then return false end
     if not DiscordPresence_DB.profiles then DiscordPresence_DB.profiles = {} end
     DiscordPresence_DB.profiles[name] = CopyTemplates(DiscordPresence_DB.templates)
     DiscordPresence_DB.active = name
@@ -84,39 +100,19 @@ function DiscordPresence_Config.SaveProfile(name)
     return true
 end
 
--- Load a user profile
-function DiscordPresence_Config.LoadProfile(name)
-    -- try user profile first, then built-in preset
-    if DiscordPresence_DB.profiles and DiscordPresence_DB.profiles[name] then
-        DiscordPresence_DB.active = name
-        DiscordPresence_DB.templates = CopyTemplates(DiscordPresence_DB.profiles[name])
-        DiscordPresence_Config.RefreshEditors()
-        if DiscordPresence_CompileTemplates then
-            DiscordPresence_CompileTemplates()
-        end
-        return true
-    end
-    return DiscordPresence_Config.ApplyPreset(name)
-end
-
--- Clone current templates into a new profile
+-- Clone current templates to a new profile
 function DiscordPresence_Config.CloneProfile(name)
     if not name or name == "" then return false end
-    if IsBuiltIn(name) then return false end
-    if not DiscordPresence_DB.profiles then DiscordPresence_DB.profiles = {} end
-    DiscordPresence_DB.profiles[name] = CopyTemplates(DiscordPresence_DB.templates)
-    DiscordPresence_DB.active = name
-    DiscordPresence_Config.RefreshLabel()
-    return true
+    return DiscordPresence_Config.SaveProfileAs(name)
 end
 
--- Rename a user profile
+-- Rename a profile (can't rename protected names)
 function DiscordPresence_Config.RenameProfile(old_name, new_name)
     if not old_name or not new_name or old_name == "" or new_name == "" then return false end
-    if IsBuiltIn(old_name) or IsBuiltIn(new_name) then return false end
+    if PROTECTED_NAMES[old_name] or PROTECTED_NAMES[new_name] then return false end
     if not DiscordPresence_DB.profiles then return false end
     if not DiscordPresence_DB.profiles[old_name] then return false end
-    if DiscordPresence_DB.profiles[new_name] then return false end -- don't overwrite
+    if DiscordPresence_DB.profiles[new_name] then return false end
     DiscordPresence_DB.profiles[new_name] = DiscordPresence_DB.profiles[old_name]
     DiscordPresence_DB.profiles[old_name] = nil
     if DiscordPresence_DB.active == old_name then
@@ -126,20 +122,40 @@ function DiscordPresence_Config.RenameProfile(old_name, new_name)
     return true
 end
 
--- Delete a user profile
+-- Delete a profile (can't delete protected names)
 function DiscordPresence_Config.DeleteProfile(name)
-    if IsBuiltIn(name) then return false end
+    if PROTECTED_NAMES[name] then return false end
     if not DiscordPresence_DB.profiles then return false end
     if not DiscordPresence_DB.profiles[name] then return false end
     DiscordPresence_DB.profiles[name] = nil
-    -- if we deleted the active profile, fall back to default
     if DiscordPresence_DB.active == name then
-        DiscordPresence_Config.ApplyPreset("default")
+        DiscordPresence_Config.LoadProfile("default")
     end
     return true
 end
 
--- Get list of user profile names
+-- Reset a protected profile back to its built-in preset
+function DiscordPresence_Config.ResetProfile(name)
+    local preset = DiscordPresence_Presets.Get(name)
+    if not preset then return false end
+    if not DiscordPresence_DB.profiles then DiscordPresence_DB.profiles = {} end
+    DiscordPresence_DB.profiles[name] = CopyTemplates(preset.templates)
+    if DiscordPresence_DB.active == name then
+        DiscordPresence_DB.templates = CopyTemplates(preset.templates)
+        DiscordPresence_Config.RefreshEditors()
+        if DiscordPresence_CompileTemplates then
+            DiscordPresence_CompileTemplates()
+        end
+    end
+    return true
+end
+
+-- For backwards compat with /dp preset <name>
+function DiscordPresence_Config.ApplyPreset(name)
+    return DiscordPresence_Config.LoadProfile(name)
+end
+
+-- Get all profile names
 function DiscordPresence_Config.GetProfileNames()
     local names = {}
     if DiscordPresence_DB.profiles then
@@ -151,8 +167,7 @@ function DiscordPresence_Config.GetProfileNames()
     return names
 end
 
--- Save editors (auto-clones if editing a built-in preset)
-
+-- Save editors back to active profile
 local function SaveEditors()
     if not DiscordPresence_DB then return end
     if not DiscordPresence_DB.templates then DiscordPresence_DB.templates = {} end
@@ -162,21 +177,7 @@ local function SaveEditors()
             DiscordPresence_DB.templates[key] = editors[key]:GetText()
         end
     end
-
-    -- auto-clone: if editing a built-in preset, save as "presetname (custom)"
-    local active = DiscordPresence_DB.active or ""
-    if IsBuiltIn(active) then
-        local clone_name = active .. " (custom)"
-        if not DiscordPresence_DB.profiles then DiscordPresence_DB.profiles = {} end
-        DiscordPresence_DB.profiles[clone_name] = CopyTemplates(DiscordPresence_DB.templates)
-        DiscordPresence_DB.active = clone_name
-    else
-        -- save back to existing user profile
-        if DiscordPresence_DB.profiles and DiscordPresence_DB.profiles[active] then
-            DiscordPresence_DB.profiles[active] = CopyTemplates(DiscordPresence_DB.templates)
-        end
-    end
-
+    DiscordPresence_Config.SaveActive()
     if DiscordPresence_CompileTemplates then
         DiscordPresence_CompileTemplates()
     end
@@ -195,8 +196,8 @@ function DiscordPresence_Config.RefreshLabel()
     if configFrame and configFrame.activeLabel then
         local active = DiscordPresence_DB.active or "none"
         local label = "Active: " .. active
-        if IsBuiltIn(active) then
-            label = label .. " (read-only)"
+        if PROTECTED_NAMES[active] then
+            label = label .. " (built-in, can reset)"
         end
         configFrame.activeLabel:SetText(label)
     end
@@ -313,31 +314,7 @@ local function BuildFrame()
 
     local yOff = -40
 
-    -- Built-in presets row
-
-    local pl = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    pl:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING, yOff)
-    pl:SetText("Presets:")
-    pl:SetTextColor(0.8, 0.8, 0.8)
-
-    local names = DiscordPresence_Presets.GetNames()
-    local btnX = PADDING + 55
-    for i = 1, table.getn(names) do
-        local pname = names[i]
-        local btn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-        btn:SetPoint("TOPLEFT", f, "TOPLEFT", btnX, yOff + 2)
-        btn:SetWidth(70)
-        btn:SetHeight(20)
-        btn:SetText(pname)
-        btn:SetScript("OnClick", function()
-            DiscordPresence_Config.ApplyPreset(pname)
-        end)
-        btnX = btnX + 75
-    end
-
-    yOff = yOff - 26
-
-    -- Profile row: name input + save/load/clone/rename/delete
+    -- Profile row: name input + load/clone/reset/delete
 
     local profileLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     profileLabel:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING, yOff)
@@ -346,12 +323,12 @@ local function BuildFrame()
 
     local profileInput = MakeEditBox(f, "DP_ProfileName", 120, 20)
     profileInput:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING + 55, yOff + 2)
-    profileInput:SetScript("OnEditFocusLost", function() end) -- don't auto-save
+    profileInput:SetScript("OnEditFocusLost", function() end)
 
-    local function MakeSmallBtn(text, x, onClick)
+    local function MakeSmallBtn(text, x, w, onClick)
         local btn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
         btn:SetPoint("TOPLEFT", f, "TOPLEFT", x, yOff + 2)
-        btn:SetWidth(50)
+        btn:SetWidth(w)
         btn:SetHeight(20)
         btn:SetText(text)
         btn:SetScript("OnClick", onClick)
@@ -359,17 +336,7 @@ local function BuildFrame()
     end
 
     local bx = PADDING + 180
-    MakeSmallBtn("Save", bx, function()
-        local name = profileInput:GetText()
-        if DiscordPresence_Config.SaveProfile(name) then
-            DEFAULT_CHAT_FRAME:AddMessage("|cff7289DA[DP]|r Saved profile: " .. name)
-        else
-            DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[DP]|r Can't save (empty or built-in name)")
-        end
-    end)
-    bx = bx + 54
-
-    MakeSmallBtn("Load", bx, function()
+    MakeSmallBtn("Load", bx, 45, function()
         local name = profileInput:GetText()
         if DiscordPresence_Config.LoadProfile(name) then
             DEFAULT_CHAT_FRAME:AddMessage("|cff7289DA[DP]|r Loaded: " .. name)
@@ -377,19 +344,31 @@ local function BuildFrame()
             DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[DP]|r Not found: " .. name)
         end
     end)
-    bx = bx + 54
+    bx = bx + 49
 
-    MakeSmallBtn("Clone", bx, function()
+    MakeSmallBtn("Clone", bx, 50, function()
         local name = profileInput:GetText()
-        if DiscordPresence_Config.CloneProfile(name) then
-            DEFAULT_CHAT_FRAME:AddMessage("|cff7289DA[DP]|r Cloned to: " .. name)
+        if name == "" or DiscordPresence_DB.profiles[name] then
+            DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[DP]|r Name empty or already exists")
         else
-            DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[DP]|r Can't clone (empty or built-in name)")
+            DiscordPresence_Config.CloneProfile(name)
+            DEFAULT_CHAT_FRAME:AddMessage("|cff7289DA[DP]|r Cloned to: " .. name)
         end
     end)
     bx = bx + 54
 
-    MakeSmallBtn("Delete", bx, function()
+    MakeSmallBtn("Reset", bx, 50, function()
+        local active = DiscordPresence_DB.active or ""
+        if PROTECTED_NAMES[active] then
+            DiscordPresence_Config.ResetProfile(active)
+            DEFAULT_CHAT_FRAME:AddMessage("|cff7289DA[DP]|r Reset: " .. active)
+        else
+            DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[DP]|r Only built-in profiles can be reset")
+        end
+    end)
+    bx = bx + 54
+
+    MakeSmallBtn("Delete", bx, 50, function()
         local name = profileInput:GetText()
         if DiscordPresence_Config.DeleteProfile(name) then
             DEFAULT_CHAT_FRAME:AddMessage("|cff7289DA[DP]|r Deleted: " .. name)
@@ -446,7 +425,8 @@ local function BuildFrame()
     help:SetTextColor(0.6, 0.6, 0.6)
     help:SetText(
         "|cff7289DAVariables:|r  player_name  player_level  player_class  player_race  zone  subzone\n" ..
-        "|cff7289DABooleans:|r  is_dead  in_party  in_raid  party_size  raid_size\n" ..
+        "|cff7289DABooleans:|r  is_dead  in_party  in_raid  party_size  raid_size  is_max_level\n" ..
+        "|cff7289DAXP:|r  xp  xp_max  xp_remaining\n" ..
         "|cff7289DAFunctions:|r  lower  upper  title  default \"str\"\n" ..
         "|cff7289DASyntax:|r  {{var}}  {{var | func}}  {{#if var}}...{{#else}}...{{/if}}\n" ..
         "|cff7289DAWhitespace:|r  {{~expr}} strip before  {{expr~}} strip after  {{~expr~}} both"

@@ -282,30 +282,18 @@ COMMANDS["preset"] = function(args)
     if not cmd then cmd = "" end
 
     if cmd == "list" then
-        L.Print("Built-in: " .. table.concat(DiscordPresence_Presets.GetNames(), ", "))
-        local profiles = DiscordPresence_Config.GetProfileNames()
-        if table.getn(profiles) > 0 then
-            L.Print("Profiles: " .. table.concat(profiles, ", "))
-        end
-    elseif cmd == "load" and rest ~= "" then
-        if DiscordPresence_Config.LoadProfile(rest) then
-            L.Print("Loaded: " .. rest)
-        elseif DiscordPresence_Config.ApplyPreset(rest) then
-            L.Print("Applied preset: " .. rest)
-        else
-            L.Print("Not found: " .. rest)
-        end
+        L.Print("Profiles: " .. table.concat(DiscordPresence_Config.GetProfileNames(), ", "))
     elseif cmd == "save" and rest ~= "" then
-        if DiscordPresence_Config.SaveProfile(rest) then
-            L.Print("Saved profile: " .. rest)
+        if DiscordPresence_Config.SaveProfileAs(rest) then
+            L.Print("Saved as: " .. rest)
         else
-            L.Print("Can't save (empty or built-in name)")
+            L.Print("Can't save")
         end
     elseif cmd == "clone" and rest ~= "" then
         if DiscordPresence_Config.CloneProfile(rest) then
             L.Print("Cloned to: " .. rest)
         else
-            L.Print("Can't clone (empty or built-in name)")
+            L.Print("Can't clone (name empty or exists)")
         end
     elseif cmd == "rename" then
         local _, _, old, new = string.find(rest, "^(%S+)%s+(%S+)")
@@ -313,7 +301,7 @@ COMMANDS["preset"] = function(args)
             if DiscordPresence_Config.RenameProfile(old, new) then
                 L.Print("Renamed: " .. old .. " -> " .. new)
             else
-                L.Print("Can't rename (not found, built-in, or target exists)")
+                L.Print("Can't rename (not found, protected, or target exists)")
             end
         else
             L.Print("Usage: /dp preset rename <old> <new>")
@@ -324,24 +312,29 @@ COMMANDS["preset"] = function(args)
         else
             L.Print("Can't delete (not found or built-in)")
         end
+    elseif cmd == "reset" and rest ~= "" then
+        if DiscordPresence_Config.ResetProfile(rest) then
+            L.Print("Reset: " .. rest)
+        else
+            L.Print("Can only reset built-in profiles (minimal/default/detailed)")
+        end
     else
-        -- bare "/dp preset <name>" loads directly
         if cmd ~= "" then
             if DiscordPresence_Config.LoadProfile(cmd) then
                 L.Print("Loaded: " .. cmd)
-            elseif DiscordPresence_Config.ApplyPreset(cmd) then
-                L.Print("Applied preset: " .. cmd)
             else
                 L.Print("Not found: " .. cmd)
             end
         else
-            L.Print("Preset commands:")
-            L.Print("  /dp preset <name>              - load preset or profile")
-            L.Print("  /dp preset list                - list all presets and profiles")
-            L.Print("  /dp preset save <name>         - save current as profile")
-            L.Print("  /dp preset clone <name>        - clone current to new profile")
-            L.Print("  /dp preset rename <old> <new>  - rename a profile")
-            L.Print("  /dp preset delete <name>       - delete a profile")
+            L.Print([[
+Preset commands:
+  /dp preset <name>              - load a profile
+  /dp preset list                - list all profiles
+  /dp preset save <name>         - save current as new profile
+  /dp preset clone <name>        - clone current to new profile
+  /dp preset rename <old> <new>  - rename a profile
+  /dp preset delete <name>       - delete a profile (not built-in)
+  /dp preset reset <name>        - reset built-in to defaults]])
         end
     end
 end
