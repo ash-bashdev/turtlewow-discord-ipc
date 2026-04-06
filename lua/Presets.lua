@@ -40,7 +40,7 @@ DiscordPresence_Presets.list = {
 {{~/if~}}
 ]],
             large_image = "turtle-weblogo",
-            large_text  = "Turtle WoW",
+            large_text  = "Turtle WoW - {{realm}}",
             small_image = "class_icons-{{player_class | lower}}",
             small_text  = "{{player_race}} {{player_class}}",
         },
@@ -67,7 +67,7 @@ DiscordPresence_Presets.list = {
 {{~/if~}}
 ]],
             large_image = "turtle-weblogo",
-            large_text  = "Turtle WoW - Mysteries of Azeroth",
+            large_text  = "Turtle WoW - {{realm}}",
             small_image = "class_icons-{{player_class | lower}}",
             small_text  = [[
 {{~#if is_max_level~}}
