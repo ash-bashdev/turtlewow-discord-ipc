@@ -60,9 +60,7 @@ DiscordPresence_Presets.list = {
 {{~#if subzone~}}, {{subzone~}}{{~/if~}}
 {{~#if in_raid}} | Raid ({{raid_size}})
 {{~#elif in_party~}}
-{{~#if party2_name}} | {{party1_name}}, {{party2_name~}}
-{{~#if party3_name~}}, {{party3_name~}}{{~/if~}}
-{{~#if party4_name~}}, {{party4_name~}}{{~/if~}}
+{{~#if party2_name}} | Party ({{party_size}})
 {{~#else}} | with {{party1_name~}}
 {{~/if~}}
 {{~#else}} | Solo
