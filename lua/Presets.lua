@@ -71,7 +71,14 @@ DiscordPresence_Presets.list = {
             large_image = "turtle-weblogo",
             large_text  = "Turtle WoW - Mysteries of Azeroth",
             small_image = "class_icons-{{player_class | lower}}",
-            small_text  = "Level {{player_level}} {{player_race}} {{player_class}}",
+            small_text  = [[
+{{~player_race}} {{player_class~}}
+{{~#if is_max_level~}}
+ - Level {{player_level}}
+{{~#else~}}
+ - {{xp}}/{{xp_max}} XP
+{{~/if~}}
+]],
         },
     },
 }

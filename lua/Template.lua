@@ -26,9 +26,8 @@ local CLOSE = "}}"
 local OPEN_LEN = 2
 local CLOSE_LEN = 2
 
--- Safety limits
-local MAX_TEMPLATE_LEN = 4096   -- max input template string length
-local MAX_NESTING_DEPTH = 16    -- max nested {{#if}} depth
+local MAX_TEMPLATE_LEN = 4096
+local MAX_NESTING_DEPTH = 16
 
 local function IsTruthy(val)
     if not val then return false end
@@ -39,9 +38,7 @@ end
 
 local function Trim(s)
     if not s then return "" end
-    s = string.gsub(s, "^%s+", "")
-    s = string.gsub(s, "%s+$", "")
-    return s
+    return string.gsub(string.gsub(s, "^%s+", ""), "%s+$", "")
 end
 
 local function StripTrailingWS(s)
@@ -390,8 +387,9 @@ end
 
 local function EvalPipe(node, vars)
     local val = vars[node.var] or ""
-    for i = 1, table.getn(node.steps) do
-        local step = node.steps[i]
+    local steps = node.steps
+    for i = 1, table.getn(steps) do
+        local step = steps[i]
         local fn = FUNCTIONS[step[1]]
         if fn then val = fn(val, step[2]) end
     end
@@ -399,24 +397,26 @@ local function EvalPipe(node, vars)
 end
 
 local function EvalNodes(nodes, vars)
-    local parts = {}
+    local result = ""
     for i = 1, table.getn(nodes) do
         local node = nodes[i]
-        if node.type == "text" then
-            table.insert(parts, node.value)
-        elseif node.type == "pipe" then
-            table.insert(parts, EvalPipe(node, vars))
-        elseif node.type == "if" then
-            for j = 1, table.getn(node.branches) do
-                local branch = node.branches[j]
+        local t = node.type
+        if t == "text" then
+            result = result .. node.value
+        elseif t == "pipe" then
+            result = result .. EvalPipe(node, vars)
+        elseif t == "if" then
+            local branches = node.branches
+            for j = 1, table.getn(branches) do
+                local branch = branches[j]
                 if branch.var == nil or IsTruthy(vars[branch.var]) then
-                    table.insert(parts, EvalNodes(branch.nodes, vars))
+                    result = result .. EvalNodes(branch.nodes, vars)
                     break
                 end
             end
         end
     end
-    return table.concat(parts, "")
+    return result
 end
 
 -- =========================================================================
@@ -434,7 +434,5 @@ function DiscordPresence_Template.Render(compiled, vars)
     end
     if not nodes or table.getn(nodes) == 0 then return "" end
     local result = EvalNodes(nodes, vars)
-    result = string.gsub(result, "^%s+", "")
-    result = string.gsub(result, "%s+$", "")
-    return result
+    return Trim(result)
 end
