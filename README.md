@@ -18,28 +18,13 @@ installation requires some sort of dll loader (vanillafixes, turtlewow launcher,
    ```
    discord_rpc.dll
    ```
-4. log in and type `/dp status` to verify it's working. if not then maybe try to debug with whatever it says
-
-## commands
-
-| command | description |
-|---------|-------------|
-| `/dp status` | check discord connection |
-| `/dp update` | force a presence update |
-| `/dp clear` | clear presence |
-| `/dp config` | open the config gui |
-| `/dp preset <name>` | apply a preset (minimal / default / detailed) |
-| `/dp debug` | toggle debug output |
-
-## linux / wine
-
-the dll writes to the windows named pipe `\\.\pipe\discord-ipc-0`. under wine/proton you need a bridge to forward this to the linux discord socket.
-
-i use: [rpc-bridge](https://github.com/EnderIce2/rpc-bridge) -- but any of them should work.
+4. log in and type `/dp status` to verify it's working. if not then maybe try to debug with whatever it says. do `/dp help` for command list
 
 ## custom templates
 
-the presence text is fully customizable. edit templates in the config gui (`/dp config`) or directly in your savedvariables file. the engine uses a go/handlebars-style syntax.
+the presence text is mostly customizable. edit templates in the config gui (`/dp config`) or directly in your savedvariables file. the template is a mix between go and handlebars templates
+
+the class images are uploaded to the discord application and can be accessed as in the presets. i think you can use cdn urls and stuff? but i havent tested this.
 
 ### variables
 
@@ -169,6 +154,13 @@ so right now it works via the windows socket
 i also have code here that uses the discord game sdk. my hope was that this would help discord with the hook to detect turtlewow correctly, but it doesn't and i dont know why.
 
 so the code is feature flagged out and i don't think it's worth using. but it's there in case maybe it can work one day.
+
+## linux / wine
+
+the dll writes to the windows named pipe `\\.\pipe\discord-ipc-0`. under wine/proton you need a bridge to forward this to the linux discord socket.
+
+i use: [rpc-bridge](https://github.com/EnderIce2/rpc-bridge) -- but any of them should work.
+
 
 ## license
 
