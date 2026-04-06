@@ -1,5 +1,13 @@
 [build]
-# This DLL targets 32-bit Windows. Setting this here means both `cargo build`
-# and rust-analyzer will check against the correct target, so fastcall and
-# windows-sys types resolve properly.
 target = "i686-pc-windows-gnu"
+
+[target.i686-pc-windows-gnu]
+rustflags = [
+    "--remap-path-prefix", "${HOME}=~",
+    "-Clink-arg=-Wl,--no-insert-timestamp",
+]
+
+[target.i686-pc-windows-msvc]
+rustflags = [
+    "--remap-path-prefix", "${HOME}=~",
+]
