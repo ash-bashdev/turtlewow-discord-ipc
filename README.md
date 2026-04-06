@@ -49,8 +49,8 @@ these are pulled from the wow api every update tick (default 15 seconds) and on 
 |----------|--------|---------|
 | `{{player_name}}` | `UnitName("player")` | `Beltmagnet` |
 | `{{player_level}}` | `UnitLevel("player")` | `60` |
-| `{{player_class}}` | `UnitClass("player")` (english) | `Warrior` |
-| `{{player_race}}` | `UnitRace("player")` | `Human` |
+| `{{player_class}}` | `UnitClass("player")` (english) | `Priest` |
+| `{{player_race}}` | `UnitRace("player")` | `Undead` |
 | `{{zone}}` | `GetRealZoneText()` | `Elwynn Forest` |
 | `{{subzone}}` | `GetMinimapZoneText()` (only if different from zone) | `Goldshire` |
 
@@ -83,10 +83,10 @@ each party slot (1-4) has its own set of variables. empty if the slot is unoccup
 chain functions with `|` to transform values left to right:
 
 ```
-{{player_class | lower}}                         --> warrior
-{{player_class | upper}}                         --> WARRIOR
-{{player_class | title}}                         --> Warrior
-{{player_class | lower | prefix "class_icons-"}} --> class_icons-warrior
+{{player_class | lower}}                         --> priest
+{{player_class | upper}}                         --> PRIEST
+{{player_class | title}}                         --> Priest
+{{player_class | lower | prefix "class_icons-"}} --> class_icons-priest
 {{player_name | suffix " the Great"}}            --> Beltmagnet the Great
 {{zone | default "Unknown"}}                     --> Unknown (if zone is empty)
 ```
@@ -155,12 +155,12 @@ small_text:
   {{player_race}} {{player_class}}
 ```
 
-for a level 42 human warrior named Beltmagnet in goldshire with a 3-person party, this renders:
+for a level 38 undead priest named Beltmagnet in goldshire with a 3-person party, this renders:
 
-- **details:** `Beltmagnet - Level 42`
+- **details:** `Beltmagnet - Level 38`
 - **state:** `Elwynn Forest, Goldshire | Party (3)`
-- **small icon:** `class_icons-warrior`
-- **small text:** `Human Warrior`
+- **small icon:** `class_icons-priest`
+- **small text:** `Undead Priest`
 
 ## license
 
