@@ -6,7 +6,8 @@ the plugin is a dll that registers lua functions that can be used to send rich p
 
 the addon uses said lua functions, grabs data from the game, and sends it.
 
-## install
+
+# setup/ install
 
 installation requires some sort of dll loader (vanillafixes, turtlewow launcher, superwow, etc)
 
@@ -20,11 +21,17 @@ installation requires some sort of dll loader (vanillafixes, turtlewow launcher,
    ```
 4. log in and type `/dp status` to verify it's working. if not then maybe try to debug with whatever it says. do `/dp help` for command list
 
-## custom templates
+
+
+## custoimization/custom templates
 
 the presence text is mostly customizable. edit templates in the config gui (`/dp config`) or directly in your savedvariables file. the template is a mix between go and handlebars templates
 
 the class images are uploaded to the discord application and can be accessed as in the presets. i think you can use cdn urls and stuff? but i havent tested this.
+
+## quirks
+
+- ok so i dont think you can actually change the game title... since its tied to the discord application right now. i don't really know if there's a way to do this without the discord application and to have correct images set, but i will do some research.
 
 ### variables
 
