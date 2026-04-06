@@ -22,11 +22,14 @@ function DiscordPresence_Vars.Build()
     local xp = UnitXP and UnitXP("player") or 0
     local xpMax = UnitXPMax and UnitXPMax("player") or 0
 
+    local realmName = GetRealmName and GetRealmName() or ""
+
     local vars = {
         player_name = playerName or "",
         player_level = playerLevel and tostring(playerLevel) or "",
         player_class = localizedClass or "",
         player_race = localizedRace or "",
+        realm = realmName,
         zone = zoneName or "",
         subzone = subZone or "",
         is_dead = isDead and "1" or "",
