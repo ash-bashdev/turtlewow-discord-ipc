@@ -57,26 +57,25 @@ DiscordPresence_Presets.list = {
 ]],
             state = [[
 {{~zone~}}
-{{~#if subzone~}}
-, {{subzone~}}
-{{~/if~}}
-{{~#if in_raid~}}
- | Raid ({{raid_size}})
+{{~#if subzone~}}, {{subzone~}}{{~/if~}}
+{{~#if in_raid}} | Raid ({{raid_size}})
 {{~#elif in_party~}}
- | Party ({{party_size}})
-{{~#else~}}
- | Solo
+{{~#if party2_name}} | {{party1_name}}, {{party2_name~}}
+{{~#if party3_name~}}, {{party3_name~}}{{~/if~}}
+{{~#if party4_name~}}, {{party4_name~}}{{~/if~}}
+{{~#else}} | with {{party1_name~}}
+{{~/if~}}
+{{~#else}} | Solo
 {{~/if~}}
 ]],
             large_image = "turtle-weblogo",
             large_text  = "Turtle WoW - Mysteries of Azeroth",
             small_image = "class_icons-{{player_class | lower}}",
             small_text  = [[
-{{~player_race}} {{player_class~}}
 {{~#if is_max_level~}}
- - Level {{player_level}}
+{{~player_race}} {{player_class}} - Level {{player_level~}}
 {{~#else~}}
- - {{xp}}/{{xp_max}} XP
+{{~xp}}/{{xp_max}} XP
 {{~/if~}}
 ]],
         },
