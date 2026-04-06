@@ -9,7 +9,7 @@
 DiscordPresence_Config = {}
 
 local FRAME_WIDTH = 540
-local FRAME_HEIGHT = 540
+local FRAME_HEIGHT = 620
 local FIELD_HEIGHT = 24
 local MULTI_HEIGHT = 60
 local LABEL_WIDTH = 80
@@ -192,6 +192,42 @@ function DiscordPresence_Config.RefreshEditors()
     DiscordPresence_Config.RefreshLabel()
 end
 
+function DiscordPresence_Config.UpdatePreview()
+    if not configFrame or not configFrame.preview then return end
+    -- try to compile from current editor text and render a preview
+    local vars = nil
+    if L and L.BuildVariables then
+        vars = L.BuildVariables()
+    end
+    if not vars then
+        -- fallback sample data for when not logged in
+        vars = {
+            player_name = "Player", player_level = "1", player_class = "Warrior",
+            player_race = "Human", zone = "Unknown", subzone = "",
+        }
+    end
+
+    local fields = { "details", "state", "large_image", "large_text", "small_image", "small_text" }
+    local lines = {}
+    local has_error = false
+    for i = 1, table.getn(fields) do
+        local key = fields[i]
+        local text = ""
+        if editors[key] then
+            text = editors[key]:GetText() or ""
+        end
+        local nodes, err = DiscordPresence_Template.Compile(text)
+        if err then
+            table.insert(lines, "|cffff4444" .. key .. ": " .. err .. "|r")
+            has_error = true
+        else
+            local rendered = DiscordPresence_Template.Render(nodes, vars)
+            table.insert(lines, "|cffaaaaaa" .. key .. ":|r " .. rendered)
+        end
+    end
+    configFrame.preview:SetText(table.concat(lines, "\n"))
+end
+
 function DiscordPresence_Config.RefreshLabel()
     if configFrame and configFrame.activeLabel then
         local active = DiscordPresence_DB.active or "none"
@@ -227,6 +263,7 @@ local function MakeEditBox(parent, name, width, height)
         SaveEditors()
     end)
     eb:SetScript("OnEditFocusLost", function() SaveEditors() end)
+    eb:SetScript("OnTextChanged", function() DiscordPresence_Config.UpdatePreview() end)
     return eb
 end
 
@@ -274,6 +311,7 @@ local function MakeMultiEditBox(parent, name, width, height)
     end)
     eb:SetScript("OnEscapePressed", function() this:ClearFocus() end)
     eb:SetScript("OnEditFocusLost", function() SaveEditors() end)
+    eb:SetScript("OnTextChanged", function() DiscordPresence_Config.UpdatePreview() end)
     sf:SetScript("OnMouseDown", function() eb:SetFocus() end)
 
     eb.scrollFrame = sf
@@ -314,16 +352,37 @@ local function BuildFrame()
 
     local yOff = -40
 
-    -- Profile row: name input + load/clone/reset/delete
+    -- Profile dropdown + buttons
 
     local profileLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     profileLabel:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING, yOff)
     profileLabel:SetText("Profile:")
     profileLabel:SetTextColor(0.8, 0.8, 0.8)
 
-    local profileInput = MakeEditBox(f, "DP_ProfileName", 120, 20)
-    profileInput:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING + 55, yOff + 2)
-    profileInput:SetScript("OnEditFocusLost", function() end)
+    local dropdown = CreateFrame("Frame", "DP_ProfileDropdown", f, "UIDropDownMenuTemplate")
+    dropdown:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING + 40, yOff + 6)
+    UIDropDownMenu_SetWidth(130, dropdown)
+
+    local function DropdownInit()
+        local names = DiscordPresence_Config.GetProfileNames()
+        for i = 1, table.getn(names) do
+            local info = {}
+            info.text = names[i]
+            info.func = function()
+                UIDropDownMenu_SetSelectedName(dropdown, this.value)
+                DiscordPresence_Config.LoadProfile(this.value)
+                DiscordPresence_Config.UpdatePreview()
+            end
+            info.value = names[i]
+            if names[i] == DiscordPresence_DB.active then
+                info.checked = true
+            end
+            UIDropDownMenu_AddButton(info)
+        end
+    end
+    UIDropDownMenu_Initialize(dropdown, DropdownInit)
+    UIDropDownMenu_SetSelectedName(dropdown, DiscordPresence_DB.active or "default")
+    f.dropdown = dropdown
 
     local function MakeSmallBtn(text, x, w, onClick)
         local btn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
@@ -335,25 +394,27 @@ local function BuildFrame()
         return btn
     end
 
-    local bx = PADDING + 180
-    MakeSmallBtn("Load", bx, 45, function()
-        local name = profileInput:GetText()
-        if DiscordPresence_Config.LoadProfile(name) then
-            DEFAULT_CHAT_FRAME:AddMessage("|cff7289DA[DP]|r Loaded: " .. name)
-        else
-            DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[DP]|r Not found: " .. name)
-        end
-    end)
-    bx = bx + 49
-
+    local bx = PADDING + 210
     MakeSmallBtn("Clone", bx, 50, function()
-        local name = profileInput:GetText()
-        if name == "" or DiscordPresence_DB.profiles[name] then
-            DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[DP]|r Name empty or already exists")
-        else
-            DiscordPresence_Config.CloneProfile(name)
-            DEFAULT_CHAT_FRAME:AddMessage("|cff7289DA[DP]|r Cloned to: " .. name)
-        end
+        -- prompt for name via simple dialog
+        StaticPopupDialogs["DP_CLONE"] = {
+            text = "Clone profile as:",
+            hasEditBox = true,
+            button1 = "OK",
+            button2 = "Cancel",
+            OnAccept = function()
+                local name = getglobal(this:GetParent():GetName().."EditBox"):GetText()
+                if name and name ~= "" then
+                    DiscordPresence_Config.CloneProfile(name)
+                    UIDropDownMenu_Initialize(dropdown, DropdownInit)
+                    UIDropDownMenu_SetSelectedName(dropdown, name)
+                end
+            end,
+            timeout = 0,
+            whileDead = true,
+            hideOnEscape = true,
+        }
+        StaticPopup_Show("DP_CLONE")
     end)
     bx = bx + 54
 
@@ -361,7 +422,7 @@ local function BuildFrame()
         local active = DiscordPresence_DB.active or ""
         if PROTECTED_NAMES[active] then
             DiscordPresence_Config.ResetProfile(active)
-            DEFAULT_CHAT_FRAME:AddMessage("|cff7289DA[DP]|r Reset: " .. active)
+            DiscordPresence_Config.UpdatePreview()
         else
             DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[DP]|r Only built-in profiles can be reset")
         end
@@ -369,15 +430,17 @@ local function BuildFrame()
     bx = bx + 54
 
     MakeSmallBtn("Delete", bx, 50, function()
-        local name = profileInput:GetText()
-        if DiscordPresence_Config.DeleteProfile(name) then
-            DEFAULT_CHAT_FRAME:AddMessage("|cff7289DA[DP]|r Deleted: " .. name)
+        local active = DiscordPresence_DB.active or ""
+        if DiscordPresence_Config.DeleteProfile(active) then
+            UIDropDownMenu_Initialize(dropdown, DropdownInit)
+            UIDropDownMenu_SetSelectedName(dropdown, DiscordPresence_DB.active or "default")
+            DiscordPresence_Config.UpdatePreview()
         else
-            DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[DP]|r Can't delete (not found or built-in)")
+            DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[DP]|r Can't delete (built-in)")
         end
     end)
 
-    yOff = yOff - 26
+    yOff = yOff - 30
 
     -- Active label
     local activeLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -385,7 +448,7 @@ local function BuildFrame()
     activeLabel:SetTextColor(0.4, 0.8, 0.4)
     f.activeLabel = activeLabel
 
-    yOff = yOff - 20
+    yOff = yOff - 16
 
     -- Template editors
 
@@ -414,7 +477,24 @@ local function BuildFrame()
         end
     end
 
-    yOff = yOff - 4
+    yOff = yOff - 6
+
+    -- Live preview
+
+    local previewLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    previewLabel:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING, yOff)
+    previewLabel:SetText("Preview:")
+    previewLabel:SetTextColor(0.8, 0.8, 0.8)
+    yOff = yOff - 14
+
+    local preview = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    preview:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING, yOff)
+    preview:SetWidth(FRAME_WIDTH - PADDING * 2)
+    preview:SetJustifyH("LEFT")
+    preview:SetTextColor(0.7, 0.9, 0.7)
+    f.preview = preview
+
+    yOff = yOff - 50
 
     -- Help text
 
