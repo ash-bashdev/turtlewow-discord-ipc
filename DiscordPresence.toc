@@ -5,6 +5,7 @@
 ## Version: 1.0.0
 ## SavedVariables: DiscordPresence_DB
 
+lua\Utils.lua
 lua\Template.lua
 lua\Presets.lua
 lua\Variables.lua
