@@ -10,9 +10,7 @@ DiscordPresence_DB = DiscordPresence_DB or {}
 
 local DP = CreateFrame("Frame", "DiscordPresenceFrame", UIParent)
 
--- =========================================================================
 -- Locals
--- =========================================================================
 
 local L = {
     UPDATE_INTERVAL = 15,
@@ -28,7 +26,10 @@ function L.Debug(msg)
 end
 
 function L.Print(msg)
-    DEFAULT_CHAT_FRAME:AddMessage(L.PREFIX .. tostring(msg))
+    msg = tostring(msg)
+    for line in string.gfind(msg, "[^\n]+") do
+        DEFAULT_CHAT_FRAME:AddMessage(L.PREFIX .. line)
+    end
 end
 
 function L.Truncate(s, limit)
@@ -39,9 +40,7 @@ function L.Truncate(s, limit)
     return s
 end
 
--- =========================================================================
 -- Build template variables from current game state
--- =========================================================================
 
 function L.BuildVariables()
     local playerName = UnitName("player")
@@ -120,9 +119,7 @@ function L.BuildVariables()
     return vars
 end
 
--- =========================================================================
 -- Compiled template cache
--- =========================================================================
 
 local compiledTemplates = nil
 
@@ -149,9 +146,7 @@ function DiscordPresence_CompileTemplates()
     L.Debug("Templates compiled")
 end
 
--- =========================================================================
 -- Render all fields from compiled templates + vars
--- =========================================================================
 
 function L.RenderFields(vars)
     if not compiledTemplates then return nil end
@@ -165,9 +160,7 @@ function L.RenderFields(vars)
     }
 end
 
--- =========================================================================
 -- Send presence update
--- =========================================================================
 
 local function UpdatePresence()
     if not DiscordSetPresence then
@@ -185,9 +178,7 @@ local function UpdatePresence()
     L.Debug("Updated: " .. f.details .. " | " .. f.state)
 end
 
--- =========================================================================
 -- OnUpdate timer
--- =========================================================================
 
 DP:SetScript("OnUpdate", function()
     if (this.tick or 1) > GetTime() then return end
@@ -196,9 +187,7 @@ DP:SetScript("OnUpdate", function()
     UpdatePresence()
 end)
 
--- =========================================================================
 -- Events (dispatch table)
--- =========================================================================
 
 local function QuickUpdate()
     DP.tick = GetTime() + L.QUICK_UPDATE
@@ -239,9 +228,7 @@ DP:SetScript("OnEvent", function()
     if handler then handler() end
 end)
 
--- =========================================================================
 -- Slash commands (dispatch table)
--- =========================================================================
 
 local COMMANDS = {}
 

@@ -49,9 +49,7 @@ local function StripLeadingWS(s)
     return string.gsub(s, "^%s+", "")
 end
 
--- =========================================================================
 -- Pipe functions
--- =========================================================================
 
 local FUNCTIONS = {}
 FUNCTIONS["lower"] = function(val) return string.lower(val) end
@@ -67,9 +65,7 @@ FUNCTIONS["default"] = function(val, arg)
     return val
 end
 
--- =========================================================================
 -- Parse pipe expression
--- =========================================================================
 
 local function ParsePipe(expr)
     local parts = {}
@@ -124,11 +120,9 @@ local function ParsePipe(expr)
     return { var = var_name, steps = steps }, nil
 end
 
--- =========================================================================
 -- Find closing }} and check for ~ before it
 -- Quote-aware: skips }} inside "..." or '...' strings
 -- Returns: close_pos, strip_right
--- =========================================================================
 
 local function FindClose(template, from)
     local len = string.len(template)
@@ -188,9 +182,7 @@ local function ApplyStripLeft(nodes)
     end
 end
 
--- =========================================================================
 -- Compile
--- =========================================================================
 
 local CompileIf
 
@@ -282,9 +274,7 @@ function DiscordPresence_Template.Compile(template)
     return nodes, err_str
 end
 
--- =========================================================================
 -- Compile {{#if}}...{{/if}}
--- =========================================================================
 
 CompileIf = function(template, tag_start, depth)
     if depth > MAX_NESTING_DEPTH then
@@ -381,9 +371,7 @@ CompileIf = function(template, tag_start, depth)
     return nil, nil, "unclosed {{#if " .. first_var .. "}}"
 end
 
--- =========================================================================
 -- Evaluate
--- =========================================================================
 
 local function EvalPipe(node, vars)
     local val = vars[node.var] or ""
@@ -419,9 +407,7 @@ local function EvalNodes(nodes, vars)
     return result
 end
 
--- =========================================================================
 -- Render
--- =========================================================================
 
 function DiscordPresence_Template.Render(compiled, vars)
     if not compiled then return "" end

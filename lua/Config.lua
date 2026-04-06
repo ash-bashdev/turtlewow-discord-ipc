@@ -28,9 +28,7 @@ local TEMPLATE_FIELDS = {
 
 local editors = {}
 
--- =========================================================================
 -- Helpers
--- =========================================================================
 
 local function CopyTemplates(src)
     local copy = {}
@@ -44,9 +42,7 @@ local function IsBuiltIn(name)
     return DiscordPresence_Presets.Get(name) ~= nil
 end
 
--- =========================================================================
 -- Init
--- =========================================================================
 
 function DiscordPresence_Config.InitDefaults()
     if not DiscordPresence_DB then DiscordPresence_DB = {} end
@@ -62,9 +58,7 @@ function DiscordPresence_Config.GetTemplates()
     return DiscordPresence_DB.templates
 end
 
--- =========================================================================
 -- Profile management
--- =========================================================================
 
 -- Load a built-in preset (read-only, editing will auto-clone)
 function DiscordPresence_Config.ApplyPreset(name)
@@ -157,9 +151,7 @@ function DiscordPresence_Config.GetProfileNames()
     return names
 end
 
--- =========================================================================
 -- Save editors (auto-clones if editing a built-in preset)
--- =========================================================================
 
 local function SaveEditors()
     if not DiscordPresence_DB then return end
@@ -210,9 +202,7 @@ function DiscordPresence_Config.RefreshLabel()
     end
 end
 
--- =========================================================================
 -- GUI helpers
--- =========================================================================
 
 local function MakeEditBox(parent, name, width, height)
     local eb = CreateFrame("EditBox", name, parent)
@@ -289,9 +279,7 @@ local function MakeMultiEditBox(parent, name, width, height)
     return eb, sf
 end
 
--- =========================================================================
 -- Build frame
--- =========================================================================
 
 local function BuildFrame()
     local f = CreateFrame("Frame", "DiscordPresenceConfigFrame", UIParent)
@@ -325,9 +313,7 @@ local function BuildFrame()
 
     local yOff = -40
 
-    -- =====================================================================
     -- Built-in presets row
-    -- =====================================================================
 
     local pl = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     pl:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING, yOff)
@@ -351,9 +337,7 @@ local function BuildFrame()
 
     yOff = yOff - 26
 
-    -- =====================================================================
     -- Profile row: name input + save/load/clone/rename/delete
-    -- =====================================================================
 
     local profileLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     profileLabel:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING, yOff)
@@ -424,9 +408,7 @@ local function BuildFrame()
 
     yOff = yOff - 20
 
-    -- =====================================================================
     -- Template editors
-    -- =====================================================================
 
     local editWidth = FRAME_WIDTH - PADDING * 2 - LABEL_WIDTH - 24
 
@@ -455,9 +437,7 @@ local function BuildFrame()
 
     yOff = yOff - 4
 
-    -- =====================================================================
     -- Help text
-    -- =====================================================================
 
     local help = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     help:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING, yOff)
@@ -477,9 +457,7 @@ local function BuildFrame()
     return f
 end
 
--- =========================================================================
 -- Toggle
--- =========================================================================
 
 function DiscordPresence_Config.Toggle()
     if configFrame and configFrame:IsShown() then
