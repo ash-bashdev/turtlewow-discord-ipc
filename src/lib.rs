@@ -29,7 +29,7 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use retour::static_detour;
-use windows_sys::Win32::Foundation::{BOOL, HMODULE, TRUE};
+use windows_sys::Win32::Foundation::HMODULE;
 use windows_sys::Win32::System::LibraryLoader::DisableThreadLibraryCalls;
 use windows_sys::Win32::System::Threading::Sleep;
 
@@ -406,7 +406,7 @@ fn discord_thread_ipc(state: &Arc<SharedState>, ts: i64) {
 // ---------------------------------------------------------------------------
 
 #[no_mangle]
-unsafe extern "system" fn DllMain(module: HMODULE, reason: u32, _reserved: *mut ()) -> BOOL {
+unsafe extern "system" fn DllMain(module: HMODULE, reason: u32, _reserved: *mut ()) -> i32 {
     const DLL_PROCESS_ATTACH: u32 = 1;
     const DLL_PROCESS_DETACH: u32 = 0;
 
@@ -427,7 +427,7 @@ unsafe extern "system" fn DllMain(module: HMODULE, reason: u32, _reserved: *mut 
                 .is_ok();
 
             if !hook_ok {
-                return TRUE;
+                return 1;
             }
 
             // Start Discord SDK thread
@@ -446,5 +446,5 @@ unsafe extern "system" fn DllMain(module: HMODULE, reason: u32, _reserved: *mut 
         _ => {}
     }
 
-    TRUE
+    1
 }
