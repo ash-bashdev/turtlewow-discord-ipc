@@ -2,13 +2,12 @@
 name = "discord_rpc"
 version = "1.0.0"
 edition = "2021"
-description = "Discord Rich Presence DLL for WoW 1.12.1 (Turtle WoW)"
+description = "Discord Rpc Lua Fucntions for WoW 1.12.1 (Turtle WoW)"
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-# Minimal Windows API bindings -- no std overhead, just the types we need
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
