@@ -64,8 +64,7 @@ FUNCTIONS["title"] = function(val)
         return string.upper(first) .. rest
     end)
 end
-FUNCTIONS["prefix"] = function(val, arg) return (arg or "") .. val end
-FUNCTIONS["suffix"] = function(val, arg) return val .. (arg or "") end
+
 FUNCTIONS["default"] = function(val, arg)
     if val == "" then return arg or "" end
     return val

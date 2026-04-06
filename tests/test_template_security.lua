@@ -37,9 +37,9 @@ end
 -- pipe argument injection (our CVE fix)
 -- }} inside a quoted pipe argument must not close the tag early
 test("pipe arg with }} inside quotes",
-    '{{a | prefix "}} {{evil}}"}}',
-    { a = "X", evil = "HACKED" },
-    "}} {{evil}}X")
+    '{{a | default "}} {{evil}}"}}',
+    { a = "", evil = "HACKED" },
+    "}} {{evil}}")
 
 -- value injection: template syntax in variable values must not be re-parsed
 test("template syntax in values",

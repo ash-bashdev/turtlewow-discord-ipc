@@ -299,7 +299,7 @@ local function BuildFrame()
     help:SetText(
         "|cff7289DAVariables:|r  player_name  player_level  player_class  player_race  zone  subzone\n" ..
         "|cff7289DABooleans:|r  is_dead  in_party  in_raid  party_size  raid_size\n" ..
-        "|cff7289DAFunctions:|r  lower  upper  title  prefix \"str\"  suffix \"str\"  default \"str\"\n" ..
+        "|cff7289DAFunctions:|r  lower  upper  title  default \"str\"\n" ..
         "|cff7289DASyntax:|r  {{var}}  {{var | func}}  {{#if var}}...{{#else}}...{{/if}}\n" ..
         "|cff7289DAWhitespace:|r  {{~expr}} strip before  {{expr~}} strip after  {{~expr~}} both"
     )

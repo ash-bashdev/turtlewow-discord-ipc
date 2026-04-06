@@ -51,9 +51,9 @@ test("nil template", nil, nil, "")
 
 -- pipe functions: all six + chaining + single quotes
 test("pipe functions",
-    '{{a | lower}} {{b | upper}} {{c | title}} {{d | prefix "pre-"}} {{e | suffix "-suf"}} {{f | default "fb"}} {{g | lower | prefix "a-" | suffix "-z"}} {{h | prefix \'q\'}}',
-    { a = "War", b = "hi", c = "elwynn forest", d = "v", e = "v", f = "", g = "B", h = "r" },
-    "war HI Elwynn Forest pre-v v-suf fb a-b-z qr")
+    '{{a | lower}} {{b | upper}} {{c | title}} {{d | default "fb"}}',
+    { a = "War", b = "hi", c = "elwynn forest", d = "" },
+    "war HI Elwynn Forest fb")
 
 -- conditionals: if/elif/else, nested, pipes inside
 test("conditionals",

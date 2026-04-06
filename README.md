@@ -60,10 +60,10 @@ each party slot (1-4) has its own set of variables. empty if the slot is unoccup
 
 | variable | source | example |
 |----------|--------|---------|
-| `{{party1_name}}` | `UnitName("party1")` | `Legolas` |
-| `{{party1_level}}` | `UnitLevel("party1")` | `58` |
-| `{{party1_class}}` | `UnitClass("party1")` (english) | `Hunter` |
-| `{{party1_race}}` | `UnitRace("party1")` | `Night Elf` |
+| `{{party1_name}}` | `UnitName("party1")` | `Jonboat` |
+| `{{party1_level}}` | `UnitLevel("party1")` | `38` |
+| `{{party1_class}}` | `UnitClass("party1")` (english) | `Priest` |
+| `{{party1_race}}` | `UnitRace("party1")` | `Human` |
 | ... | same for `party2_`, `party3_`, `party4_` | |
 
 ### group variables
@@ -86,12 +86,12 @@ chain functions with `|` to transform values left to right:
 {{player_class | lower}}                         --> priest
 {{player_class | upper}}                         --> PRIEST
 {{player_class | title}}                         --> Priest
-{{player_class | lower | prefix "class_icons-"}} --> class_icons-priest
-{{player_name | suffix " the Great"}}            --> Beltmagnet the Great
+class_icons-{{player_class | lower}}             --> class_icons-priest
+{{player_name}} the Great                        --> Beltmagnet the Great
 {{zone | default "Unknown"}}                     --> Unknown (if zone is empty)
 ```
 
-available functions: `lower`, `upper`, `title`, `prefix "str"`, `suffix "str"`, `default "str"`
+available functions: `lower`, `upper`, `title`, `default "str"`
 
 ### conditionals
 
@@ -149,7 +149,7 @@ state:
   {{~#if in_party}} | Party ({{party_size}}){{~/if}}
 
 small_image:
-  {{player_class | lower | prefix "class_icons-"}}
+  class_icons-{{player_class | lower}}
 
 small_text:
   {{player_race}} {{player_class}}
