@@ -89,14 +89,4 @@ function DiscordPresence_Presets.Get(name)
     return nil
 end
 
-function DiscordPresence_Presets.GetDefault()
-    return DiscordPresence_Presets.Get("default")
-end
 
-function DiscordPresence_Presets.GetNames()
-    local names = {}
-    for i = 1, table.getn(DiscordPresence_Presets.list) do
-        table.insert(names, DiscordPresence_Presets.list[i].name)
-    end
-    return names
-end

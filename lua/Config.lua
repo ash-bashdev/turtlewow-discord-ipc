@@ -64,9 +64,6 @@ function DiscordPresence_Config.InitDefaults()
     end
 end
 
-function DiscordPresence_Config.GetTemplates()
-    return DiscordPresence_DB.templates
-end
 
 -- Load a profile (by name)
 function DiscordPresence_Config.LoadProfile(name)
@@ -150,12 +147,7 @@ function DiscordPresence_Config.ResetProfile(name)
     return true
 end
 
--- For backwards compat with /dp preset <name>
-function DiscordPresence_Config.ApplyPreset(name)
-    return DiscordPresence_Config.LoadProfile(name)
-end
 
--- Get all profile names
 function DiscordPresence_Config.GetProfileNames()
     local names = {}
     if DiscordPresence_DB.profiles then

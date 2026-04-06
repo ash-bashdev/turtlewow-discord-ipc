@@ -35,7 +35,7 @@ end
 local compiledTemplates = nil
 
 function DiscordPresence_CompileTemplates()
-    local t = DiscordPresence_Config.GetTemplates()
+    local t = DiscordPresence_DB.templates
     if not t then
         compiledTemplates = nil
         return
