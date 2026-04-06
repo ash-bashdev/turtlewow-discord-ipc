@@ -42,7 +42,6 @@ local function BuildVariables()
     if not playerName then return nil end
 
     local localizedClass = UnitClass("player")
-    local _, englishClass = UnitClass("player")
     local localizedRace = UnitRace("player")
     local playerLevel = UnitLevel("player")
     local zoneName = GetRealZoneText()
@@ -58,7 +57,7 @@ local function BuildVariables()
     local vars = {
         player_name = playerName or "",
         player_level = playerLevel and tostring(playerLevel) or "",
-        player_class = englishClass or "",
+        player_class = localizedClass or "",
         player_race = localizedRace or "",
         zone = zoneName or "",
         subzone = subZone or "",
@@ -94,10 +93,9 @@ local function BuildVariables()
         local name = UnitName(unit)
         local prefix = "party" .. i .. "_"
         if name then
-            local _, cls = UnitClass(unit)
             vars[prefix .. "name"] = name
             vars[prefix .. "level"] = tostring(UnitLevel(unit) or "")
-            vars[prefix .. "class"] = cls or ""
+            vars[prefix .. "class"] = UnitClass(unit) or ""
             vars[prefix .. "race"] = UnitRace(unit) or ""
         else
             vars[prefix .. "name"] = ""

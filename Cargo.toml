@@ -14,7 +14,7 @@ game-sdk = []     # Use Discord Game SDK (experimental, overlay + presence, requ
 
 [dependencies]
 # Minimal Windows API bindings -- no std overhead, just the types we need
-windows-sys = { version = "0.59", features = [
+windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
     "Win32_System_LibraryLoader",
