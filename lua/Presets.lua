@@ -58,12 +58,11 @@ DiscordPresence_Presets.list = {
             state = [[
 {{~zone~}}
 {{~#if subzone~}}, {{subzone~}}{{~/if~}}
-{{~#if in_raid}} | Raid ({{raid_size}})
+{{~#if in_raid}} ({{raid_size}}/40)
 {{~#elif in_party~}}
-{{~#if party2_name}} | Party ({{party_size}})
-{{~#else}} | with {{party1_name~}}
+{{~#if party2_name}} ({{party_size}}/5)
+{{~#else}} with {{party1_name~}}
 {{~/if~}}
-{{~#else}} | Solo
 {{~/if~}}
 ]],
             large_image = "turtle-weblogo",
