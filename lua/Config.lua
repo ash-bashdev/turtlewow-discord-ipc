@@ -9,7 +9,7 @@
 DiscordPresence_Config = {}
 
 local FRAME_WIDTH = 540
-local FRAME_HEIGHT = 620
+local FRAME_HEIGHT = 650
 local FIELD_HEIGHT = 24
 local MULTI_HEIGHT = 60
 local LABEL_WIDTH = 80
@@ -438,7 +438,23 @@ local function BuildFrame()
     activeLabel:SetTextColor(0.4, 0.8, 0.4)
     f.activeLabel = activeLabel
 
-    yOff = yOff - 16
+    yOff = yOff - 18
+
+    -- Options
+    local partyCheck = CreateFrame("CheckButton", "DP_ShowParty", f, "UICheckButtonTemplate")
+    partyCheck:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING - 2, yOff)
+    partyCheck:SetWidth(24)
+    partyCheck:SetHeight(24)
+    partyCheck:SetChecked(DiscordPresence_DB.show_party)
+    partyCheck:SetScript("OnClick", function()
+        DiscordPresence_DB.show_party = (this:GetChecked() == 1)
+    end)
+    local partyLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    partyLabel:SetPoint("LEFT", partyCheck, "RIGHT", 2, 0)
+    partyLabel:SetText("Show party size on Discord")
+    partyLabel:SetTextColor(0.9, 0.9, 0.9)
+
+    yOff = yOff - 26
 
     -- Template editors
 
