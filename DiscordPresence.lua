@@ -236,6 +236,7 @@ SlashCmdList["DISCORDPRESENCE"] = function(msg)
         else
             Print("Not connected to Discord")
         end
+        Print("Active: " .. (DiscordPresence_DB.active or "none"))
     elseif msg == "update" then
         UpdatePresence()
         Print("Forced presence update")
@@ -251,15 +252,71 @@ SlashCmdList["DISCORDPRESENCE"] = function(msg)
         Print("Debug mode: " .. (DEBUG_ENABLED and "ON" or "OFF"))
     elseif string.sub(msg, 1, 7) == "preset " then
         local name = string.sub(msg, 8)
-        DiscordPresence_Config.ApplyPreset(name)
-        Print("Applied preset: " .. name)
+        if DiscordPresence_Config.ApplyPreset(name) then
+            Print("Applied preset: " .. name)
+        else
+            Print("Unknown preset: " .. name)
+        end
+    elseif string.sub(msg, 1, 5) == "save " then
+        local name = string.sub(msg, 6)
+        if DiscordPresence_Config.SaveProfile(name) then
+            Print("Saved profile: " .. name)
+        else
+            Print("Can't save (empty name or built-in preset name)")
+        end
+    elseif string.sub(msg, 1, 5) == "load " then
+        local name = string.sub(msg, 6)
+        if DiscordPresence_Config.LoadProfile(name) then
+            Print("Loaded profile: " .. name)
+        else
+            Print("Profile not found: " .. name)
+        end
+    elseif string.sub(msg, 1, 6) == "clone " then
+        local name = string.sub(msg, 7)
+        if DiscordPresence_Config.CloneProfile(name) then
+            Print("Cloned to: " .. name)
+        else
+            Print("Can't clone (empty or built-in name)")
+        end
+    elseif string.sub(msg, 1, 7) == "rename " then
+        local args = string.sub(msg, 8)
+        local _, _, old, new = string.find(args, "^(%S+)%s+(%S+)")
+        if old and new then
+            if DiscordPresence_Config.RenameProfile(old, new) then
+                Print("Renamed: " .. old .. " -> " .. new)
+            else
+                Print("Can't rename (not found, built-in, or target exists)")
+            end
+        else
+            Print("Usage: /dp rename <old> <new>")
+        end
+    elseif string.sub(msg, 1, 7) == "delete " then
+        local name = string.sub(msg, 8)
+        if DiscordPresence_Config.DeleteProfile(name) then
+            Print("Deleted profile: " .. name)
+        else
+            Print("Can't delete (not found or built-in)")
+        end
+    elseif msg == "profiles" then
+        local names = DiscordPresence_Config.GetProfileNames()
+        if table.getn(names) == 0 then
+            Print("No saved profiles. Use /dp save <name> to save one.")
+        else
+            Print("Saved profiles: " .. table.concat(names, ", "))
+        end
     else
         Print("Commands:")
-        Print("  /dp status  - Check Discord connection")
-        Print("  /dp update  - Force presence update")
-        Print("  /dp clear   - Clear presence")
-        Print("  /dp preset <name>  - Apply preset (minimal/default/detailed)")
-        Print("  /dp config  - Open config GUI")
-        Print("  /dp debug   - Toggle debug messages")
+        Print("  /dp status   - connection status and active profile")
+        Print("  /dp update   - force presence update")
+        Print("  /dp clear    - clear presence")
+        Print("  /dp config   - open config gui")
+        Print("  /dp preset <name>    - load built-in (minimal/default/detailed)")
+        Print("  /dp save <name>      - save current templates as profile")
+        Print("  /dp load <name>      - load a saved profile")
+        Print("  /dp clone <name>     - clone current templates to new profile")
+        Print("  /dp rename <old> <new> - rename a profile")
+        Print("  /dp delete <name>    - delete a saved profile")
+        Print("  /dp profiles         - list saved profiles")
+        Print("  /dp debug    - toggle debug messages")
     end
 end

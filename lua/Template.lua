@@ -16,7 +16,7 @@
       Works on all tags: variables, #if, #else, #elif, /if, comments
 
     Pipe functions:
-      lower  upper  title  prefix "str"  suffix "str"  default "str"
+      lower  upper  title  default "str"
 ]]
 
 DiscordPresence_Template = {}
