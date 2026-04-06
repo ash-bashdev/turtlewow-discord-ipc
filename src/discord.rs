@@ -170,6 +170,8 @@ impl DiscordIpc {
         small_image: &str,
         small_text: &str,
         start_timestamp: i64,
+        party_size: i32,
+        party_max: i32,
     ) -> io::Result<()> {
         if self.state != State::Ready {
             return Err(io::Error::new(io::ErrorKind::NotConnected, "not ready"));
@@ -178,7 +180,6 @@ impl DiscordIpc {
         let nonce = self.next_nonce();
         let pid = std::process::id();
 
-        // Build optional sections
         let timestamps = if start_timestamp > 0 {
             format!(",\"timestamps\":{{\"start\":{}}}", start_timestamp)
         } else {
@@ -210,6 +211,15 @@ impl DiscordIpc {
             }
         };
 
+        let party = if party_size > 0 && party_max > 0 {
+            format!(
+                ",\"party\":{{\"id\":\"wow-party\",\"size\":[{},{}]}}",
+                party_size, party_max
+            )
+        } else {
+            String::new()
+        };
+
         let json = format!(
             concat!(
                 "{{",
@@ -221,6 +231,7 @@ impl DiscordIpc {
                 "\"state\":\"{state}\"",
                 "{timestamps}",
                 "{assets}",
+                "{party}",
                 "}}",
                 "}},",
                 "\"nonce\":\"{nonce}\"",
@@ -231,6 +242,7 @@ impl DiscordIpc {
             state = json_escape(state),
             timestamps = timestamps,
             assets = assets,
+            party = party,
             nonce = nonce,
         );
 

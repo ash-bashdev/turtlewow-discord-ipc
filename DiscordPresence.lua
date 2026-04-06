@@ -58,7 +58,21 @@ local function UpdatePresence()
     local f = DiscordPresence_Vars.RenderFields(compiledTemplates, vars)
     if not f then return end
 
-    DiscordSetPresence(f.details, f.state, f.largeImage, f.largeText, f.smallImage, f.smallText)
+    local partySize = 0
+    local partyMax = 0
+    if DiscordPresence_DB.show_party then
+        local numRaid = GetNumRaidMembers and GetNumRaidMembers() or 0
+        local numParty = GetNumPartyMembers and GetNumPartyMembers() or 0
+        if numRaid > 0 then
+            partySize = numRaid
+            partyMax = 40
+        elseif numParty > 0 then
+            partySize = numParty + 1
+            partyMax = 5
+        end
+    end
+
+    DiscordSetPresence(f.details, f.state, f.largeImage, f.largeText, f.smallImage, f.smallText, partySize, partyMax)
     Debug("Updated: " .. f.details .. " | " .. f.state)
 end
 

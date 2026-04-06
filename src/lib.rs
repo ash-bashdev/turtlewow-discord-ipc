@@ -52,6 +52,8 @@ struct PresenceData {
     large_text: String,
     small_image: String,
     small_text: String,
+    party_size: i32,
+    party_max: i32,
     dirty: bool,
     clear: bool,
 }
@@ -148,7 +150,7 @@ unsafe fn lua_get_string(api: &wow::WowApi, l: wow::LuaState, idx: i32, nargs: i
     api.tostring(l, idx).unwrap_or_default()
 }
 
-/// `DiscordSetPresence(details, state, largeImage, largeText, smallImage, smallText)`
+/// `DiscordSetPresence(details, state, largeImage, largeText, smallImage, smallText, partySize, partyMax)`
 #[no_mangle]
 pub unsafe extern "fastcall" fn Script_DiscordSetPresence(_l: wow::LuaState) -> c_int {
     let api = match wow::api() {
@@ -163,6 +165,9 @@ pub unsafe extern "fastcall" fn Script_DiscordSetPresence(_l: wow::LuaState) -> 
     let l = api.get_state();
     let nargs = api.gettop(l);
 
+    let party_size = if nargs >= 7 { api.tonumber(l, 7) as i32 } else { 0 };
+    let party_max = if nargs >= 8 { api.tonumber(l, 8) as i32 } else { 0 };
+
     state.set_presence(PresenceData {
         details: lua_get_string(api, l, 1, nargs),
         state: lua_get_string(api, l, 2, nargs),
@@ -170,6 +175,8 @@ pub unsafe extern "fastcall" fn Script_DiscordSetPresence(_l: wow::LuaState) -> 
         large_text: lua_get_string(api, l, 4, nargs),
         small_image: lua_get_string(api, l, 5, nargs),
         small_text: lua_get_string(api, l, 6, nargs),
+        party_size,
+        party_max,
         dirty: true,
         clear: false,
     });
@@ -297,6 +304,7 @@ fn discord_thread(state: Arc<SharedState>) {
                     &data.large_image, &data.large_text,
                     &data.small_image, &data.small_text,
                     ts,
+                    data.party_size, data.party_max,
                 )
             };
             if result.is_err() {

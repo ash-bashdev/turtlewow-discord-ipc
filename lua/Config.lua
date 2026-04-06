@@ -44,6 +44,7 @@ function DiscordPresence_Config.InitDefaults()
     if not DiscordPresence_DB then DiscordPresence_DB = {} end
     if not DiscordPresence_DB.profiles then DiscordPresence_DB.profiles = {} end
     if not DiscordPresence_DB.active then DiscordPresence_DB.active = "default" end
+    if DiscordPresence_DB.show_party == nil then DiscordPresence_DB.show_party = true end
 
     -- seed built-ins into profiles on first run
     local presets = DiscordPresence_Presets.list
