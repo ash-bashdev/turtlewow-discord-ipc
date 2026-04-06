@@ -1,18 +1,6 @@
--- Variables.lua - Game state collection and template rendering
--- Pulls data from WoW API and builds the variable table for templates.
--- No dependencies on Config or DiscordPresence.
-
 DiscordPresence_Vars = {}
 
 DiscordPresence_Vars.MAX_LEN = 128
-
-function DiscordPresence_Vars.Truncate(s, limit)
-    if not s then return "" end
-    if string.len(s) > limit then
-        return string.sub(s, 1, limit - 3) .. "..."
-    end
-    return s
-end
 
 function DiscordPresence_Vars.Build()
     local playerName = UnitName("player")
@@ -96,7 +84,7 @@ function DiscordPresence_Vars.RenderFields(compiledTemplates, vars)
     if not compiledTemplates or not vars then return nil end
     local T = DiscordPresence_Template
     local MAX = DiscordPresence_Vars.MAX_LEN
-    local trunc = DiscordPresence_Vars.Truncate
+    local trunc = DiscordPresence_Utils.Truncate
     return {
         details    = trunc(T.Render(compiledTemplates.details, vars), MAX),
         state      = trunc(T.Render(compiledTemplates.state, vars), MAX),

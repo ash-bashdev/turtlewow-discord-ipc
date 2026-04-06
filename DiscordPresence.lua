@@ -16,20 +16,9 @@ local DP = CreateFrame("Frame", "DiscordPresenceFrame", UIParent)
 
 local UPDATE_INTERVAL = 15
 local QUICK_UPDATE = 0.25
-local DEBUG = false
-local PREFIX = "|cff7289DA[DiscordPresence]|r "
 
-local function Debug(msg)
-    if not DEBUG then return end
-    DEFAULT_CHAT_FRAME:AddMessage(PREFIX .. tostring(msg))
-end
-
-local function Print(msg)
-    msg = tostring(msg)
-    for line in string.gfind(msg, "[^\n]+") do
-        DEFAULT_CHAT_FRAME:AddMessage(PREFIX .. line)
-    end
-end
+local Print = DiscordPresence_Utils.Print
+local Debug = DiscordPresence_Utils.Debug
 
 -- compiled template cache
 local compiledTemplates = nil

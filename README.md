@@ -27,7 +27,7 @@ installation requires some sort of dll loader (vanillafixes, turtlewow launcher,
 
 the presence text is mostly customizable. edit templates in the config gui (`/dp config`) or directly in your savedvariables file. the template is a mix between go and handlebars templates
 
-the class images are uploaded to the discord application and can be accessed as in the presets. i think you can use cdn urls and stuff? but i havent tested this.
+the class images are uploaded to the discord application and can be accessed as in the presets. i think you can use cdn urls and stuff? but i havent tested this. https://docs.discord.com/developers/events/gateway-events#activity-object-activity-asset-image
 
 ## quirks
 
