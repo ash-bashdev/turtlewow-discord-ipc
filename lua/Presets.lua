@@ -29,15 +29,7 @@ DiscordPresence_Presets.list = {
 ]],
             state = [[
 {{~zone~}}
-{{~#if subzone~}}
-, {{subzone~}}
-{{~/if~}}
-{{~#if in_raid~}}
- | Raid ({{raid_size}})
-{{~/if~}}
-{{~#if in_party~}}
- | Party ({{party_size}})
-{{~/if~}}
+{{~#if subzone~}}, {{subzone~}}{{~/if~}}
 ]],
             large_image = "turtle-weblogo",
             large_text  = "Turtle WoW - {{realm}}",
@@ -58,9 +50,8 @@ DiscordPresence_Presets.list = {
             state = [[
 {{~zone~}}
 {{~#if subzone~}}, {{subzone~}}{{~/if~}}
-{{~#if in_raid}} ({{raid_size}}/40)
-{{~#elif in_party~}}
-{{~#if party2_name}} ({{party_size}}/5)
+{{~#if in_party~}}
+{{~#if party2_name~}}
 {{~#else}} with {{party1_name~}}
 {{~/if~}}
 {{~/if~}}
