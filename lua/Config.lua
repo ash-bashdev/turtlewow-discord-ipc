@@ -198,7 +198,10 @@ function DiscordPresence_Config.UpdatePreview()
     local vars = nil
     vars = DiscordPresence_Vars.Build()
     if not vars then
-        vars = DiscordPresence_Vars.SampleData()
+        if configFrame and configFrame.preview then
+            configFrame.preview:SetText("|cff888888Not logged in - no preview available|r")
+        end
+        return
     end
 
     local fields = { "details", "state", "large_image", "large_text", "small_image", "small_text" }

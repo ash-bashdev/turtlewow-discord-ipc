@@ -107,17 +107,4 @@ function DiscordPresence_Vars.RenderFields(compiledTemplates, vars)
     }
 end
 
--- Sample data for preview when not logged in
-function DiscordPresence_Vars.SampleData()
-    return {
-        player_name = "Beltmagnet", player_level = "38", player_class = "Priest",
-        player_race = "Undead", zone = "Tirisfal Glades", subzone = "Brill",
-        is_dead = "", in_party = "1", in_raid = "", party_size = "3", raid_size = "",
-        xp = "12450", xp_max = "33000", xp_remaining = "20550", is_max_level = "",
-        is_leader = "1", leader_name = "Beltmagnet",
-        party1_name = "Gandalf", party1_level = "40", party1_class = "Mage", party1_race = "Human",
-        party2_name = "Legolas", party2_level = "39", party2_class = "Hunter", party2_race = "Night Elf",
-        party3_name = "", party3_level = "", party3_class = "", party3_race = "",
-        party4_name = "", party4_level = "", party4_class = "", party4_race = "",
-    }
-end
+
