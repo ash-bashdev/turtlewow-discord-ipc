@@ -50,10 +50,12 @@ DiscordPresence_Presets.list = {
             state = [[
 {{~zone~}}
 {{~#if subzone~}}, {{subzone~}}{{~/if~}}
-{{~#if in_party~}}
-{{~#if party2_name~}}
+{{~#if in_raid}} ({{raid_size}}/40)
+{{~#elif in_party~}}
+{{~#if party2_name}} ({{party_size}}/5)
 {{~#else}} with {{party1_name~}}
 {{~/if~}}
+{{~#else}} Solo
 {{~/if~}}
 ]],
             large_image = "turtle-weblogo",
@@ -61,9 +63,9 @@ DiscordPresence_Presets.list = {
             small_image = "class_icons-{{player_class | lower}}",
             small_text  = [[
 {{~#if is_max_level~}}
-{{~player_race}} {{player_class}} - Level {{player_level~}}
+{{~player_race}} {{player_class}} ({{player_level}})
 {{~#else~}}
-{{~xp}}/{{xp_max}} XP
+{{~xp}}/{{xp_max}} XP ({{player_level}})
 {{~/if~}}
 ]],
         },
