@@ -6,6 +6,8 @@ the plugin is a dll that registers lua functions that can be used to send rich p
 
 the addon uses said lua functions, grabs data from the game, and sends it.
 
+i made this because i couldnt find a rich presence addon and plugin that didnt work like craftpresence with the pixels, and worked directly with the game/lua layer
+
 
 # setup/ install
 
