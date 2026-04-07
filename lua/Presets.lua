@@ -42,10 +42,7 @@ DiscordPresence_Presets.list = {
         templates = {
             details = [[
 {{~player_name}} - {{player_race}} {{player_class~}}
- - Level {{player_level~}}
-{{~#if is_dead~}}
- (Dead)
-{{~/if~}}
+{{~#if is_dead}} (Dead){{/if~}}
 ]],
             state = [[
 {{~zone~}}
