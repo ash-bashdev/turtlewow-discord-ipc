@@ -97,7 +97,7 @@ local EVENT_HANDLERS = {
     end,
     PLAYER_LOGIN = function()
         Debug("Player logged in")
-        QuickUpdate()
+        DP.tick = GetTime() + 2
     end,
     PLAYER_LOGOUT = function()
         if DiscordClearPresence then DiscordClearPresence() end
@@ -105,6 +105,7 @@ local EVENT_HANDLERS = {
 }
 
 local QUICK_EVENTS = {
+    "PLAYER_ENTERING_WORLD",
     "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS",
     "PARTY_MEMBERS_CHANGED", "RAID_ROSTER_UPDATE",
     "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST",
