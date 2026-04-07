@@ -451,7 +451,7 @@ local function BuildFrame()
     end)
     local partyLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     partyLabel:SetPoint("LEFT", partyCheck, "RIGHT", 2, 0)
-    partyLabel:SetText("Show party size on Discord")
+    partyLabel:SetText("Enable rich party presence")
     partyLabel:SetTextColor(0.9, 0.9, 0.9)
 
     yOff = yOff - 26
