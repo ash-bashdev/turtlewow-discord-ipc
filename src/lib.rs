@@ -1,13 +1,3 @@
-//! Discord Rich Presence DLL for WoW 1.12.1 (Turtle WoW)
-//!
-//! Loaded by VanillaFixes via `dlls.txt`.
-//!
-//! DllMain installs a bootstrap hook chain to register Lua functions
-//! at the right time (after WoW's Lua state is initialized).
-//! A background thread manages the Discord IPC pipe and sends presence updates.
-//! Lua callbacks write into shared state (Mutex+Condvar), the background
-//! thread picks it up and sends to Discord.
-
 mod discord;
 mod wow;
 
@@ -22,16 +12,8 @@ use windows_sys::Win32::Foundation::HMODULE;
 use windows_sys::Win32::System::LibraryLoader::DisableThreadLibraryCalls;
 use windows_sys::Win32::System::Threading::Sleep;
 
-// ---------------------------------------------------------------------------
-// Configuration
-// ---------------------------------------------------------------------------
-
 const DISCORD_CLIENT_ID: &str = "1490096071706284192";
 const IDLE_TIMEOUT: Duration = Duration::from_secs(15);
-
-// ---------------------------------------------------------------------------
-// Static detours for hooking game functions
-// ---------------------------------------------------------------------------
 
 static_detour! {
     static SysMsgInitHook: extern "fastcall" fn();
@@ -39,10 +21,6 @@ static_detour! {
 }
 
 static HOOKS_INITIALIZED: AtomicBool = AtomicBool::new(false);
-
-// ---------------------------------------------------------------------------
-// Shared state between Lua thread and Discord thread
-// ---------------------------------------------------------------------------
 
 #[derive(Clone, Default)]
 struct PresenceData {
@@ -139,10 +117,6 @@ fn start_time() -> i64 {
         .unwrap_or(0)
 }
 
-// ---------------------------------------------------------------------------
-// Lua callbacks (extern "fastcall" -- called from WoW's main thread)
-// ---------------------------------------------------------------------------
-
 unsafe fn lua_get_string(api: &wow::WowApi, l: wow::LuaState, idx: i32, nargs: i32) -> String {
     if idx > nargs {
         return String::new();
@@ -150,7 +124,6 @@ unsafe fn lua_get_string(api: &wow::WowApi, l: wow::LuaState, idx: i32, nargs: i
     api.tostring(l, idx).unwrap_or_default()
 }
 
-/// `DiscordSetPresence(details, state, largeImage, largeText, smallImage, smallText, partySize, partyMax)`
 #[no_mangle]
 pub unsafe extern "fastcall" fn Script_DiscordSetPresence(_l: wow::LuaState) -> c_int {
     let api = match wow::api() {
@@ -184,7 +157,6 @@ pub unsafe extern "fastcall" fn Script_DiscordSetPresence(_l: wow::LuaState) -> 
     0
 }
 
-/// `DiscordClearPresence()`
 #[no_mangle]
 pub unsafe extern "fastcall" fn Script_DiscordClearPresence(_l: wow::LuaState) -> c_int {
     if let Some(state) = shared() {
@@ -197,7 +169,6 @@ pub unsafe extern "fastcall" fn Script_DiscordClearPresence(_l: wow::LuaState) -
     0
 }
 
-/// `DiscordIsConnected()` -- returns 1 or nil
 #[no_mangle]
 pub unsafe extern "fastcall" fn Script_DiscordIsConnected(_l: wow::LuaState) -> c_int {
     let api = match wow::api() {
@@ -215,10 +186,6 @@ pub unsafe extern "fastcall" fn Script_DiscordIsConnected(_l: wow::LuaState) -> 
     }
     1
 }
-
-// ---------------------------------------------------------------------------
-// Hook chain: DllMain -> SysMsgInit -> LoadScriptFunctions -> register
-// ---------------------------------------------------------------------------
 
 unsafe fn register_lua_functions() {
     let api = match wow::api() {
@@ -265,16 +232,11 @@ fn sys_msg_init_detour() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Background Discord thread
-// ---------------------------------------------------------------------------
-
 fn discord_thread(state: Arc<SharedState>) {
     let ts = start_time();
     let mut ipc = discord::DiscordIpc::new(DISCORD_CLIENT_ID);
 
     while !state.should_shutdown() {
-        // Connect if needed
         if !ipc.is_ready() {
             state.set_connected(false);
             if ipc.connect().is_ok() {
@@ -282,19 +244,16 @@ fn discord_thread(state: Arc<SharedState>) {
             }
             if !ipc.is_ready() {
                 ipc.disconnect();
-                // Wait with condvar
                 state.wait_for_work(IDLE_TIMEOUT);
                 continue;
             }
             state.set_connected(true);
         }
 
-        // Block until new data or timeout
         state.wait_for_work(IDLE_TIMEOUT);
 
         if state.should_shutdown() { break; }
 
-        // Send pending update
         if let Some(data) = state.take_if_dirty() {
             let result = if data.clear {
                 ipc.clear_activity()
@@ -314,7 +273,6 @@ fn discord_thread(state: Arc<SharedState>) {
             }
         }
 
-        // Drain incoming messages
         if ipc.is_ready() {
             if ipc.drain_responses().is_err() {
                 ipc.disconnect();
@@ -326,10 +284,6 @@ fn discord_thread(state: Arc<SharedState>) {
     ipc.disconnect();
     state.set_connected(false);
 }
-
-// ---------------------------------------------------------------------------
-// DLL entry point
-// ---------------------------------------------------------------------------
 
 #[no_mangle]
 unsafe extern "system" fn DllMain(module: HMODULE, reason: u32, _reserved: *mut ()) -> i32 {
@@ -343,7 +297,6 @@ unsafe extern "system" fn DllMain(module: HMODULE, reason: u32, _reserved: *mut 
             let state = Arc::new(SharedState::new());
             let _ = SHARED.set(state.clone());
 
-            // Install bootstrap hook
             let sys_msg_fn: wow::SysMsgInitializeFn =
                 std::mem::transmute(wow::sys_msg_initialize_addr());
 
@@ -356,7 +309,6 @@ unsafe extern "system" fn DllMain(module: HMODULE, reason: u32, _reserved: *mut 
                 return 1;
             }
 
-            // Start Discord IPC thread
             let thread_state = state.clone();
             thread::spawn(move || discord_thread(thread_state));
         }
