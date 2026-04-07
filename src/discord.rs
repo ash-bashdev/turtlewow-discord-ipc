@@ -2,13 +2,66 @@ use std::io;
 use std::ptr;
 
 use serde::Serialize;
-use serde_json::json;
 
 use windows_sys::Win32::Foundation::{
     CloseHandle, GENERIC_READ, GENERIC_WRITE, HANDLE, INVALID_HANDLE_VALUE,
 };
 use windows_sys::Win32::Storage::FileSystem::{CreateFileA, ReadFile, WriteFile, OPEN_EXISTING};
 use windows_sys::Win32::System::Pipes::PeekNamedPipe;
+
+#[derive(Serialize)]
+struct Handshake<'a> {
+    v: i32,
+    client_id: &'a str,
+}
+
+#[derive(Serialize)]
+struct Timestamps {
+    start: i64,
+}
+
+#[derive(Serialize)]
+struct Assets<'a> {
+    #[serde(skip_serializing_if = "str::is_empty")]
+    large_image: &'a str,
+    #[serde(skip_serializing_if = "str::is_empty")]
+    large_text: &'a str,
+    #[serde(skip_serializing_if = "str::is_empty")]
+    small_image: &'a str,
+    #[serde(skip_serializing_if = "str::is_empty")]
+    small_text: &'a str,
+}
+
+#[derive(Serialize)]
+struct Party {
+    id: String,
+    size: [i32; 2],
+}
+
+#[derive(Serialize)]
+struct Activity<'a> {
+    details: &'a str,
+    state: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timestamps: Option<Timestamps>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    assets: Option<Assets<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    party: Option<Party>,
+}
+
+#[derive(Serialize)]
+struct SetActivityArgs<'a> {
+    pid: u32,
+    activity: Option<Activity<'a>>,
+}
+
+#[derive(Serialize)]
+struct RpcCommand<'a> {
+    cmd: &'a str,
+    args: SetActivityArgs<'a>,
+    nonce: String,
+}
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -126,8 +179,14 @@ impl DiscordIpc {
         if self.state != State::Connected {
             return Err(io::Error::new(io::ErrorKind::NotConnected, "not connected"));
         }
-        let payload = json!({ "v": 1, "client_id": self.client_id });
-        self.send_frame(Opcode::Handshake, payload.to_string().as_bytes())?;
+
+        let hs = Handshake {
+            v: 1,
+            client_id: &self.client_id,
+        };
+        let payload = serde_json::to_string(&hs)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        self.send_frame(Opcode::Handshake, payload.as_bytes())?;
 
         let (op, response) = self.recv_frame()?;
         if op == Opcode::Frame && response.contains("\"READY\"") {
@@ -157,62 +216,71 @@ impl DiscordIpc {
             return Err(io::Error::new(io::ErrorKind::NotConnected, "not ready"));
         }
 
-        let mut activity = json!({
-            "details": details,
-            "state": state,
-        });
+        let timestamps = if start_timestamp > 0 {
+            Some(Timestamps {
+                start: start_timestamp,
+            })
+        } else {
+            None
+        };
 
-        if start_timestamp > 0 {
-            activity["timestamps"] = json!({ "start": start_timestamp });
-        }
+        let assets = if !large_image.is_empty() || !small_image.is_empty() {
+            Some(Assets {
+                large_image,
+                large_text,
+                small_image,
+                small_text,
+            })
+        } else {
+            None
+        };
 
-        let has_large = !large_image.is_empty();
-        let has_small = !small_image.is_empty();
-        if has_large || has_small {
-            let mut assets = serde_json::Map::new();
-            if has_large {
-                assets.insert("large_image".into(), json!(large_image));
-                assets.insert("large_text".into(), json!(large_text));
-            }
-            if has_small {
-                assets.insert("small_image".into(), json!(small_image));
-                assets.insert("small_text".into(), json!(small_text));
-            }
-            activity["assets"] = serde_json::Value::Object(assets);
-        }
+        let party = if party_size > 0 && party_max > 0 {
+            Some(Party {
+                id: "wow-party".to_owned(),
+                size: [party_size, party_max],
+            })
+        } else {
+            None
+        };
 
-        if party_size > 0 && party_max > 0 {
-            activity["party"] = json!({
-                "id": "wow-party",
-                "size": [party_size, party_max],
-            });
-        }
-
-        let payload = json!({
-            "cmd": "SET_ACTIVITY",
-            "args": {
-                "pid": std::process::id(),
-                "activity": activity,
+        let cmd = RpcCommand {
+            cmd: "SET_ACTIVITY",
+            args: SetActivityArgs {
+                pid: std::process::id(),
+                activity: Some(Activity {
+                    details,
+                    state,
+                    timestamps,
+                    assets,
+                    party,
+                }),
             },
-            "nonce": self.next_nonce().to_string(),
-        });
+            nonce: self.next_nonce().to_string(),
+        };
 
-        self.send_frame(Opcode::Frame, payload.to_string().as_bytes())
+        let payload = serde_json::to_string(&cmd)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        self.send_frame(Opcode::Frame, payload.as_bytes())
     }
 
     pub fn clear_activity(&mut self) -> io::Result<()> {
         if self.state != State::Ready {
             return Err(io::Error::new(io::ErrorKind::NotConnected, "not ready"));
         }
-        let payload = json!({
-            "cmd": "SET_ACTIVITY",
-            "args": {
-                "pid": std::process::id(),
-                "activity": null,
+
+        let cmd = RpcCommand {
+            cmd: "SET_ACTIVITY",
+            args: SetActivityArgs {
+                pid: std::process::id(),
+                activity: None,
             },
-            "nonce": self.next_nonce().to_string(),
-        });
-        self.send_frame(Opcode::Frame, payload.to_string().as_bytes())
+            nonce: self.next_nonce().to_string(),
+        };
+
+        let payload = serde_json::to_string(&cmd)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        self.send_frame(Opcode::Frame, payload.as_bytes())
     }
 
     pub fn drain_responses(&mut self) -> io::Result<()> {
