@@ -12,12 +12,12 @@ local editors = {}
 local isDirty = false
 
 local TEMPLATE_FIELDS = {
-    { key = "details",     label = "Details",     multi = true },
-    { key = "state",       label = "State",       multi = true },
-    { key = "large_image", label = "Large Icon",  multi = false },
-    { key = "large_text",  label = "Large Text",  multi = false },
-    { key = "small_image", label = "Small Icon",  multi = false },
-    { key = "small_text",  label = "Small Text",  multi = false },
+    { key = "details",     label = "Details",       multi = true },
+    { key = "state",       label = "State",         multi = true },
+    { key = "large_image", label = "Large Image",   multi = false },
+    { key = "large_text",  label = "Large Hover",   multi = false },
+    { key = "small_image", label = "Small Image",   multi = false },
+    { key = "small_text",  label = "Small Hover",   multi = false },
 }
 
 local PROTECTED_NAMES = { minimal = true, default = true, detailed = true }
@@ -523,29 +523,36 @@ local function BuildFrame()
     ref:SetJustifyH("LEFT")
     ref:SetTextColor(0.7, 0.7, 0.7)
     ref:SetText(
+        "|cff7289DAPresence Fields:|r\n" ..
+        "  Details - main text line (what you're doing)\n" ..
+        "  State - secondary text line (location, group)\n" ..
+        "  Large Image - big icon (asset key or https:// url)\n" ..
+        "  Large Hover - tooltip when hovering large icon\n" ..
+        "  Small Image - small overlay icon (asset key or url)\n" ..
+        "  Small Hover - tooltip when hovering small icon\n\n" ..
         "|cff7289DAPlayer:|r\n" ..
-        "  {{player_name}}  {{player_level}}  {{player_class}}  {{player_race}}\n" ..
-        "  {{realm}}\n\n" ..
+        "  {{player_name}}  {{player_level}}  {{player_class}}\n" ..
+        "  {{player_race}}  {{realm}}\n\n" ..
         "|cff7289DALocation:|r\n" ..
         "  {{zone}}  {{subzone}}\n\n" ..
         "|cff7289DAGroup:|r\n" ..
         "  {{is_dead}}  {{in_party}}  {{in_raid}}  {{is_leader}}\n" ..
         "  {{party_size}}  {{raid_size}}  {{leader_name}}\n\n" ..
         "|cff7289DAParty Members:|r\n" ..
-        "  {{party1_name}}  {{party1_level}}  {{party1_class}}  {{party1_race}}\n" ..
-        "  {{party2_name}}  {{party2_level}}  ...up to party4\n\n" ..
+        "  {{party1_name}}  {{party1_level}}  {{party1_class}}\n" ..
+        "  {{party1_race}}  ...same for party2 through party4\n\n" ..
         "|cff7289DAXP:|r\n" ..
         "  {{xp}}  {{xp_max}}  {{xp_remaining}}  {{is_max_level}}\n\n" ..
         "|cff7289DAFunctions:|r\n" ..
         "  {{var | lower}}  {{var | upper}}  {{var | title}}\n" ..
         "  {{var | default \"fallback\"}}\n\n" ..
         "|cff7289DAConditionals:|r\n" ..
-        "  {{#if var}}shown if true{{/if}}\n" ..
-        "  {{#if var}}true{{#elif var2}}alt{{#else}}false{{/if}}\n\n" ..
+        "  {{#if var}}...{{/if}}\n" ..
+        "  {{#if var}}...{{#elif var2}}...{{#else}}...{{/if}}\n\n" ..
         "|cff7289DAWhitespace:|r\n" ..
         "  {{~expr}} strip before  {{expr~}} strip after\n" ..
         "  {{~expr~}} strip both sides\n\n" ..
-        "|cff7289DAComments:|r  {{! this is ignored }}"
+        "|cff7289DAComments:|r  {{! ignored }}"
     )
 
     -- confirm save on close

@@ -25,9 +25,21 @@ installation requires some sort of dll loader (vanillafixes, turtlewow launcher,
 
 
 
-## custoimization/custom templates
+## customization/custom templates
 
-the presence text is mostly customizable. edit templates in the config gui (`/dp config`) or directly in your savedvariables file. the template is a mix between go and handlebars templates
+the presence text is mostly customizable. edit templates in the config gui (`/dp config`) or directly in your savedvariables file. the template is a mix between go and handlebars templates.
+
+here's what each field maps to in discord:
+
+![discord rich presence fields](https://mintcdn.com/discord/eCuA2RUd7jZAoO2Y/images/rich-presence/annotated-data-activities.png?w=840&fit=max&auto=format&n=eCuA2RUd7jZAoO2Y&q=85&s=291fbaa5df7b0fa2ca72db5777ffb7b9)
+
+- **details** - main text line (what you're doing)
+- **state** - secondary text line (location, group status)
+- **large image** - big icon (discord asset key or https url)
+- **large hover** - tooltip shown when hovering the large icon
+- **small image** - small overlay icon in the corner
+- **small hover** - tooltip shown when hovering the small icon
+- **party** - shown as `(N of M)` badge when enabled
 
 the class images are uploaded to the discord application and can be accessed as in the presets. i think you can use cdn urls and stuff? but i havent tested this. https://docs.discord.com/developers/events/gateway-events#activity-object-activity-asset-image
 
