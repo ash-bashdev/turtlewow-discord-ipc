@@ -9,6 +9,8 @@ local PADDING = 12
 
 local configFrame = nil
 local editors = {}
+local charCounts = {}
+local CHAR_LIMITS = { details = 128, state = 128 }
 local isDirty = false
 
 local TEMPLATE_FIELDS = {
@@ -59,6 +61,7 @@ function DiscordPresence_Config.LoadProfile(name)
     DiscordPresence_DB.active = name
     DiscordPresence_DB.templates = CopyTemplates(DiscordPresence_DB.profiles[name])
     isDirty = false
+    DiscordPresence_Config.RefreshDropdown()
     DiscordPresence_Config.RefreshEditors()
     if DiscordPresence_CompileTemplates then DiscordPresence_CompileTemplates() end
     return true
@@ -77,6 +80,7 @@ function DiscordPresence_Config.SaveActive()
     DiscordPresence_DB.profiles[active] = CopyTemplates(DiscordPresence_DB.templates)
     if DiscordPresence_CompileTemplates then DiscordPresence_CompileTemplates() end
     isDirty = false
+    DiscordPresence_Config.RefreshDropdown()
     DiscordPresence_Config.RefreshLabel()
     return true
 end
@@ -93,6 +97,7 @@ function DiscordPresence_Config.SaveProfileAs(name)
     DiscordPresence_DB.profiles[name] = CopyTemplates(DiscordPresence_DB.templates)
     DiscordPresence_DB.active = name
     isDirty = false
+    DiscordPresence_Config.RefreshDropdown()
     DiscordPresence_Config.RefreshLabel()
     return true
 end
@@ -113,6 +118,7 @@ function DiscordPresence_Config.RenameProfile(old_name, new_name)
     if DiscordPresence_DB.active == old_name then
         DiscordPresence_DB.active = new_name
     end
+    DiscordPresence_Config.RefreshDropdown()
     DiscordPresence_Config.RefreshLabel()
     return true
 end
@@ -125,6 +131,7 @@ function DiscordPresence_Config.DeleteProfile(name)
     if DiscordPresence_DB.active == name then
         DiscordPresence_Config.LoadProfile("default")
     end
+    DiscordPresence_Config.RefreshDropdown()
     return true
 end
 
@@ -136,6 +143,7 @@ function DiscordPresence_Config.ResetProfile(name)
     if DiscordPresence_DB.active == name then
         DiscordPresence_DB.templates = CopyTemplates(preset.templates)
         isDirty = false
+        DiscordPresence_Config.RefreshDropdown()
         DiscordPresence_Config.RefreshEditors()
         if DiscordPresence_CompileTemplates then DiscordPresence_CompileTemplates() end
     end
@@ -153,11 +161,36 @@ function DiscordPresence_Config.GetProfileNames()
     return names
 end
 
+function DiscordPresence_Config.RefreshDropdown()
+    if not configFrame or not configFrame.dropdown then return end
+    UIDropDownMenu_Initialize(configFrame.dropdown, configFrame.dropdownInit)
+    UIDropDownMenu_SetSelectedName(configFrame.dropdown, DiscordPresence_DB.active or "default")
+end
+
+function DiscordPresence_Config.UpdateCharCounts()
+    for key, label in pairs(charCounts) do
+        local eb = editors[key]
+        if eb and label then
+            local len = string.len(eb:GetText() or "")
+            local limit = CHAR_LIMITS[key] or 128
+            label:SetText(len .. "/" .. limit)
+            if len > limit then
+                label:SetTextColor(1, 0.3, 0.3)
+            elseif len > limit * 0.85 then
+                label:SetTextColor(1, 0.8, 0.2)
+            else
+                label:SetTextColor(0.5, 0.5, 0.5)
+            end
+        end
+    end
+end
+
 function DiscordPresence_Config.RefreshEditors()
     if not DiscordPresence_DB or not DiscordPresence_DB.templates then return end
     for key, eb in pairs(editors) do
         eb:SetText(DiscordPresence_DB.templates[key] or "")
     end
+    DiscordPresence_Config.UpdateCharCounts()
     DiscordPresence_Config.RefreshLabel()
     DiscordPresence_Config.UpdatePreview()
 end
@@ -206,6 +239,7 @@ end
 
 local function MarkDirty()
     isDirty = true
+    DiscordPresence_Config.UpdateCharCounts()
     DiscordPresence_Config.RefreshLabel()
     DiscordPresence_Config.UpdatePreview()
 end
@@ -371,6 +405,7 @@ local function BuildFrame()
             UIDropDownMenu_AddButton(info)
         end
     end
+    f.dropdownInit = DropdownInit
     UIDropDownMenu_Initialize(dropdown, DropdownInit)
     UIDropDownMenu_SetSelectedName(dropdown, DiscordPresence_DB.active or "default")
     f.dropdown = dropdown
@@ -404,8 +439,6 @@ local function BuildFrame()
                 local name = getglobal(this:GetParent():GetName().."EditBox"):GetText()
                 if name and name ~= "" then
                     DiscordPresence_Config.CloneProfile(name)
-                    UIDropDownMenu_Initialize(dropdown, DropdownInit)
-                    UIDropDownMenu_SetSelectedName(dropdown, name)
                 end
             end,
             timeout = 0, whileDead = true, hideOnEscape = true,
@@ -424,10 +457,7 @@ local function BuildFrame()
 
     SmallBtn("Delete", bx, 50, function()
         local active = DiscordPresence_DB.active or ""
-        if DiscordPresence_Config.DeleteProfile(active) then
-            UIDropDownMenu_Initialize(dropdown, DropdownInit)
-            UIDropDownMenu_SetSelectedName(dropdown, DiscordPresence_DB.active or "default")
-        end
+        DiscordPresence_Config.DeleteProfile(active)
     end)
 
     yOff = yOff - 28
@@ -483,15 +513,31 @@ local function BuildFrame()
         label:SetText(field.label)
         label:SetTextColor(0.9, 0.9, 0.9)
 
+        local limit = CHAR_LIMITS[field.key]
+
         if field.multi then
             local eb, sf = MakeMultiEditBox(templatesTab, "DP_Edit_" .. field.key, editWidth, MULTI_HEIGHT)
             sf:SetPoint("TOPLEFT", templatesTab, "TOPLEFT", PADDING + LABEL_WIDTH + 8, ty)
             editors[field.key] = eb
+            if limit then
+                local cc = templatesTab:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                cc:SetPoint("TOPRIGHT", sf, "TOPRIGHT", -4, -2)
+                cc:SetJustifyH("RIGHT")
+                cc:SetTextColor(0.5, 0.5, 0.5)
+                charCounts[field.key] = cc
+            end
             ty = ty - (MULTI_HEIGHT + 6)
         else
             local eb = MakeEditBox(templatesTab, "DP_Edit_" .. field.key, editWidth, FIELD_HEIGHT)
             eb:SetPoint("TOPLEFT", templatesTab, "TOPLEFT", PADDING + LABEL_WIDTH + 8, ty)
             editors[field.key] = eb
+            if limit then
+                local cc = templatesTab:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                cc:SetPoint("TOPRIGHT", eb, "TOPRIGHT", -4, 0)
+                cc:SetJustifyH("RIGHT")
+                cc:SetTextColor(0.5, 0.5, 0.5)
+                charCounts[field.key] = cc
+            end
             ty = ty - (FIELD_HEIGHT + 6)
         end
     end
